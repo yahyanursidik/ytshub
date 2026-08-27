@@ -11,7 +11,7 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createDatabase, schema } from '@/server/db/client';
+import { closeDatabase, createDatabase, schema } from '@/server/db/client';
 import { runMigrations } from '@/server/db/migrate';
 import { runSeed, seedSummary } from '@/server/db/seed';
 import { SEED_CODE_PREFIX } from '@/server/db/seed-data';
@@ -48,6 +48,13 @@ describeDb('core registry (PostgreSQL sungguhan)', () => {
     db = createDatabase();
     await runSeed(db);
   }, 60_000);
+  // Menutup pool koneksi setelah berkas ini selesai. Tiap berkas test membuka
+  // pool sendiri; membiarkannya terbuka membuat koneksi menumpuk sampai ada
+  // test yang gagal karena kehabisan koneksi, bukan karena kodenya salah.
+  afterAll(async () => {
+    await closeDatabase(db);
+  });
+
 
   afterAll(async () => {
     if (db) await db.execute(sql`select 1`);

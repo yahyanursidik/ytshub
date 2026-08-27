@@ -28,7 +28,7 @@ Mengikuti `yts-hub-md/10-DEVELOPMENT-PLAN.md`:
 | 3    | Public directory routes + detail pages          | Selesai |
 | 4    | FAQ center & unified search                     | Selesai |
 | 5    | Admin & governance                              | Selesai |
-| 6    | Integrasi & broken-link monitoring              | Belum   |
+| 6    | Integrasi & broken-link monitoring              | Selesai |
 | 7    | Observability & quality                         | Belum   |
 
 ## Untuk AI coding assistant

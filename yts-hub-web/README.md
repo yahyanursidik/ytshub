@@ -2,8 +2,7 @@
 
 Implementasi web publik YTS Hub mengikuti dokumen requirement di `yts-hub-md/`.
 
-**Status: Fase 0–5 selesai.** Fase 6 (integrasi & broken-link monitoring) dan seterusnya belum
-dikerjakan.
+**Status: Fase 0–6 selesai.** Fase 7 (observability & quality) belum dikerjakan.
 
 ## Menjalankan
 
@@ -58,6 +57,8 @@ Perintah lain:
 | `npm run db:status`     | Menghitung baris seed yang ada                                 |
 | `npm run db:studio`     | Drizzle Studio untuk melihat isi database                      |
 | `npm run admin:user`    | Membuat akun admin, menetapkan peran, menyetel ulang kata sandi |
+| `npm run links:check`   | Memeriksa kesehatan seluruh tautan eksternal (memanggil jaringan) |
+| `npm run links:report`  | Menampilkan hasil pemeriksaan terakhir tanpa memanggil jaringan  |
 
 ### Akun admin pertama
 
@@ -147,6 +148,10 @@ src/
 │   │   ├── search-queries.ts     # pencarian terpadu & peringkatnya
 │   │   ├── search-terms.ts       # olah teks query — tanpa database, teruji unit
 │   │   └── search-analytics.ts   # log pencarian & feedback FAQ
+│   ├── integrations/
+│   │   ├── link-status.ts   # PENILAIAN status tautan — tanpa jaringan, teruji unit
+│   │   ├── link-monitor.ts  # mengumpulkan URL, menghubungi, menyimpan hasilnya
+│   │   └── registry.ts      # read API canonical untuk sistem lain
 │   └── env.ts          # validasi environment
 ├── styles/
 │   ├── tokens.css      # design tokens — sumber tunggal warna/tipografi/spacing
@@ -158,8 +163,42 @@ drizzle/                # migrasi SQL — di-commit, jangan diedit tangan kecual
                         # (CREATE EXTENSION, index atas ekspresi); beri komentar
 scripts/db.ts           # CLI database
 scripts/admin.ts        # CLI akun admin & peran
+scripts/links.ts        # CLI pemeriksaan tautan eksternal (dijalankan terjadwal)
 tools/                  # script screenshot & audit a11y
 ```
+
+## Menjadwalkan pemeriksaan tautan
+
+`npm run links:check` dirancang untuk dijalankan berkala, bukan dari build. Ia keluar
+dengan kode 1 **hanya bila ada tautan yang baru rusak**, sehingga penjadwal bisa
+mengubahnya menjadi pemberitahuan tanpa membaca keluarannya — dan tidak mengirim
+pemberitahuan yang sama setiap hari untuk tautan yang sudah diketahui rusak.
+
+Contoh dengan GitHub Actions (harian, 02.00 WIB):
+
+```yaml
+on:
+  schedule:
+    - cron: '0 19 * * *' # 19.00 UTC = 02.00 WIB
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: yts-hub-web/package-lock.json }
+      - run: npm ci
+        working-directory: yts-hub-web
+      - run: npm run links:check
+        working-directory: yts-hub-web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+```
+
+Hasilnya selalu bisa dibaca di `/admin/tautan`, dan tautan rusak ikut muncul di dasbor
+admin. Selama pemeriksaan belum pernah dijalankan, halaman itu mengatakannya
+apa adanya — bukan menampilkan "semua sehat".
 
 ## Keputusan implementasi yang perlu diketahui
 
@@ -291,6 +330,40 @@ Mewajibkan dua orang berbeda membutuhkan minimal dua approver di setiap unit, da
 belum tentu punya. Audit log mencatat kedua peristiwa beserta pelakunya, sehingga
 persetujuan-sendiri terlihat jelas saat riwayatnya dibaca.
 
+**Pemantauan tautan berjalan terjadwal, tidak pernah saat halaman dibuka.**
+`npm run links:check` mengumpulkan setiap URL publik dari kelima entity yang bisa
+memilikinya, menghubunginya satu per satu, lalu menyimpan hasilnya. Halaman
+`/admin/tautan` hanya membaca hasil itu. Menghubungi puluhan sistem luar setiap kali
+seseorang membuka admin akan mengubah kunjungan biasa menjadi lonjakan trafik di mata
+sistem yang diperiksa.
+
+**Rusak butuh tiga kali gagal berturut-turut, kecuali 404.** Server yang sedang
+di-deploy, jaringan yang tersendat, dan pembatasan laju semuanya menghasilkan
+kegagalan sesaat; menandainya rusak seketika membuat admin dibanjiri peringatan palsu
+lalu berhenti mempercayainya. 404 dan 410 dikecualikan karena itu jawaban pasti.
+Naik-turun `https`, `www.`, dan garis miring di akhir TIDAK dianggap pengalihan —
+kalau dianggap, seluruh registry akan tertandai sekaligus tanpa satu pun yang perlu
+ditindaklanjuti.
+
+**Halaman publik berkata jujur soal tautan yang rusak.** CTA layanan dan baris
+registry yang tautannya diketahui mati tidak dirender sebagai tombol; sebagai
+gantinya halaman menyatakan sistemnya sedang tidak bisa dibuka dan mengarahkan ke
+kanal kontak. Mengirim pengunjung ke halaman mati membuatnya mengira dirinya yang
+salah, lalu mencoba berulang kali sebelum menyerah.
+
+**Read API registry hanya membaca, dan bentuk jawabannya tetap.**
+`/api/registry/<resource>.json` memberi `id` (UUID canonical) dan `code` agar sistem
+lain menyimpan referensi, bukan menggandakan definisi unit dan layanan
+(08-INTEGRATION §3-§4). Tidak ada parameter yang bisa memperluas kolom yang
+dikembalikan, dan field internal registry aplikasi tidak pernah ikut — ada test yang
+mengisinya dengan penanda lalu membuktikan penanda itu tidak muncul di jawaban.
+
+Pertahanan utama terhadap penyalahgunaan adalah cache CDN (`s-maxage=300`), bukan
+pembatas laju di dalam function: hitungan pembatas itu ada di memori satu instance,
+sehingga instance lain punya hitungan sendiri. Itu disebut apa adanya di kodenya. Bila
+penyalahgunaan yang disengaja benar-benar terjadi, tempat memperbaikinya adalah
+pembatasan laju di tingkat Netlify.
+
 ## Yang belum dikerjakan
 
 | Fase | Isi                                             | Status  |
@@ -301,7 +374,7 @@ persetujuan-sendiri terlihat jelas saat riwayatnya dibaca.
 | 3    | Public directory routes + detail pages          | Selesai |
 | 4    | FAQ center & unified search                     | Selesai |
 | 5    | Admin & governance (RBAC, lifecycle, audit log) | Selesai |
-| 6    | Integrasi & broken-link monitoring              | Belum   |
+| 6    | Integrasi & broken-link monitoring              | Selesai |
 | 7    | Observability & quality                         | Belum   |
 
 ## Deployment (Netlify)

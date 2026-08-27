@@ -86,6 +86,11 @@ const canManageUsers = actor ? roleFor(actor, null) === 'admin' : false;
                     </a>
                   </li>
                 ))}
+                <li>
+                  <a href="/admin/tautan" aria-current={isActive('/admin/tautan') ? 'page' : undefined}>
+                    Tautan
+                  </a>
+                </li>
                 {canManageUsers && (
                   <li>
                     <a

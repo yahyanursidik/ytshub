@@ -475,8 +475,6 @@ export const applications = pgTable(
     databaseProvider: text('database_provider'),
     integrationNotes: text('integration_notes'),
     criticality: text('criticality'),
-    linkHealth: linkHealth('link_health'),
-    linkCheckedAt: timestamp('link_checked_at', { withTimezone: true }),
     sortOrder: integer('sort_order').notNull().default(0),
     /**
      * Hanya kolom publik yang masuk index. `integration_notes`, `technical_owner`,
@@ -493,7 +491,6 @@ export const applications = pgTable(
     uniqueIndex('applications_code_key').on(table.code),
     index('applications_owner_idx').on(table.ownerUnitId),
     index('applications_status_idx').on(table.status, table.visibility),
-    index('applications_health_idx').on(table.linkHealth),
     index('applications_search_idx').using('gin', table.searchVector),
   ],
 );
@@ -788,6 +785,66 @@ export const contentAudit = pgTable(
     index('content_audit_entity_idx').on(table.entity, table.entityId, table.createdAt),
     index('content_audit_actor_idx').on(table.actorId),
     index('content_audit_created_idx').on(table.createdAt),
+  ],
+);
+
+/* ============================================ tautan eksternal (Fase 6) */
+
+/**
+ * Setiap URL publik yang menunjuk keluar YTS Hub — 08-INTEGRATION-AND-ROUTING.md §6.
+ *
+ * Satu tabel untuk SELURUH entity, bukan kolom `link_health` di masing-masing.
+ * Kolom seperti itu sempat ada di `applications` sejak Fase 2 dan tidak pernah
+ * terisi; kalau diteruskan, lima entity lain yang juga punya URL (unit, layanan,
+ * program, event) akan butuh kolomnya sendiri-sendiri, dan hasil pemeriksaan
+ * tersebar di lima tempat yang harus dijaga tetap sinkron.
+ *
+ * Barisnya DITURUNKAN dari tabel konten pada setiap pemeriksaan, bukan ditulis
+ * saat editor menyimpan. Konsekuensinya disengaja: tidak ada trigger yang bisa
+ * lupa berjalan, dan URL yang dihapus dari konten ikut hilang dari sini pada
+ * pemeriksaan berikutnya.
+ */
+export const externalLinks = pgTable(
+  'external_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entity: auditEntity('entity').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    /** Nama kolom asal, mis. 'ctaUrl' — satu entity bisa punya beberapa URL. */
+    field: text('field').notNull(),
+    url: text('url').notNull(),
+
+    /** null berarti belum pernah diperiksa, bukan "sehat". */
+    status: linkHealth('status'),
+    httpStatus: integer('http_status'),
+    /** Diisi bila permintaan berakhir di alamat lain. */
+    redirectTarget: text('redirect_target'),
+    /** Pesan kesalahan jaringan (timeout, DNS) — bukan badan jawaban. */
+    error: text('error'),
+
+    /**
+     * Kegagalan berturut-turut.
+     *
+     * Satu kali gagal belum tentu tautan mati: jaringan tersendat, server
+     * sedang di-deploy, atau kita kena pembatasan laju. Status `broken` baru
+     * ditetapkan setelah beberapa kali berturut-turut — kecuali 404/410 yang
+     * memang jawaban pasti. Tanpa ini, admin akan dibanjiri peringatan palsu
+     * dan berhenti mempercayainya.
+     */
+    consecutiveFailures: integer('consecutive_failures').notNull().default(0),
+    checkedAt: timestamp('checked_at', { withTimezone: true }),
+    /** Kapan pertama kali rusak — untuk tahu sudah berapa lama dibiarkan. */
+    firstBrokenAt: timestamp('first_broken_at', { withTimezone: true }),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Satu baris per (entity, baris, kolom). Menjadi kunci upsert saat
+    // pemeriksaan berjalan, sehingga riwayat kegagalan tidak hilang.
+    uniqueIndex('external_links_target_key').on(table.entity, table.entityId, table.field),
+    index('external_links_status_idx').on(table.status, table.checkedAt),
+    index('external_links_entity_idx').on(table.entity, table.entityId),
   ],
 );
 

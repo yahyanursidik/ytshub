@@ -13,9 +13,9 @@
  * Di-skip otomatis bila DATABASE_URL_TEST kosong.
  */
 import { eq, sql } from 'drizzle-orm';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createDatabase, schema } from '@/server/db/client';
+import { closeDatabase, createDatabase, schema } from '@/server/db/client';
 import { runMigrations } from '@/server/db/migrate';
 import { runSeed } from '@/server/db/seed';
 import { search, suggest, suggestCorrection } from '@/server/content/search-queries';
@@ -41,6 +41,13 @@ describeDb('pencarian terpadu', () => {
     await runSeed(db);
     await db.delete(schema.searchQueries);
   }, 60_000);
+  // Menutup pool koneksi setelah berkas ini selesai. Tiap berkas test membuka
+  // pool sendiri; membiarkannya terbuka membuat koneksi menumpuk sampai ada
+  // test yang gagal karena kehabisan koneksi, bukan karena kodenya salah.
+  afterAll(async () => {
+    await closeDatabase(db);
+  });
+
 
   it('menemukan layanan dari nama persisnya', async () => {
     const hasil = await search('ppdb online');

@@ -492,7 +492,6 @@ export async function listApplications() {
       kind: applications.kind,
       url: applications.url,
       ctaLabel: applications.ctaLabel,
-      linkHealth: applications.linkHealth,
       unitSlug: units.slug,
       unitName: units.shortName,
     })

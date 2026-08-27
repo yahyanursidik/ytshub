@@ -1,0 +1,273 @@
+---
+/**
+ * Kesehatan tautan eksternal — 08-INTEGRATION-AND-ROUTING.md §6.
+ *
+ * Halaman ini TIDAK memanggil jaringan. Ia hanya membaca hasil pemeriksaan
+ * terakhir; pemeriksaannya sendiri dijalankan terjadwal lewat
+ * `npm run links:check`. Menghubungi puluhan sistem luar setiap kali seseorang
+ * membuka halaman admin akan mengubah kunjungan biasa menjadi lonjakan trafik
+ * di mata sistem yang diperiksa.
+ *
+ * Kapan terakhir diperiksa ditampilkan besar-besar, karena laporan kesehatan
+ * yang basi lebih berbahaya daripada tidak ada laporan sama sekali.
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { listLinks } from '@/server/integrations/link-monitor';
+import { roleFor } from '@/server/auth/roles';
+import { ENTITIES, type EntityKey } from '@/server/admin/entities';
+
+const actor = Astro.locals.actor;
+if (!actor) return Astro.redirect('/admin/masuk', 302);
+
+// Penugasan tingkat organisasi membuka seluruh unit; selain itu dibatasi.
+const isOrgWide = roleFor(actor, null) !== null;
+const unitIds = isOrgWide
+  ? null
+  : actor.assignments
+      .map((assignment) => assignment.unitId)
+      .filter((unitId): unitId is string => unitId !== null);
+
+const STATUSES = ['broken', 'warning', 'redirected', 'healthy'] as const;
+const requested = Astro.url.searchParams.get('status');
+const status = STATUSES.includes(requested as (typeof STATUSES)[number])
+  ? (requested as string)
+  : undefined;
+
+const all = await listLinks({ unitIds });
+const rows = status ? all.filter((row) => row.status === status) : all;
+
+const countBy = (value: string) => all.filter((row) => row.status === value).length;
+
+/** Pemeriksaan terakhir di seluruh baris — bukan per baris. */
+const lastChecked = all
+  .map((row) => (row.checkedAt ? new Date(row.checkedAt).getTime() : 0))
+  .reduce((latest, value) => Math.max(latest, value), 0);
+
+const formatDateTime = (value: Date | string | number) =>
+  new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(value),
+  );
+
+const daysSince = (value: number) => Math.floor((Date.now() - value) / 86_400_000);
+
+const STATUS_LABEL: Record<string, string> = {
+  healthy: 'Sehat',
+  redirected: 'Dialihkan',
+  warning: 'Peringatan',
+  broken: 'Rusak',
+};
+
+const FIELD_LABEL: Record<string, string> = {
+  websiteUrl: 'Situs unit',
+  ctaUrl: 'Tautan tombol',
+  registrationUrl: 'Pendaftaran',
+  mapUrl: 'Peta',
+  url: 'URL sistem',
+};
+
+const adminHref = (row: (typeof rows)[number]) =>
+  `/admin/${ENTITIES[row.entity as EntityKey].slug}/${row.entityId}`;
+---
+
+<AdminLayout title="Tautan eksternal" actor={actor}>
+  <div class="admin-head">
+    <div>
+      <h1>Tautan eksternal</h1>
+      <p>
+        {all.length} tautan pada konten terbit di unit yang Anda kelola. Pemeriksaan dijalankan
+        terjadwal, bukan saat halaman ini dibuka.
+      </p>
+    </div>
+  </div>
+
+  {
+    all.length === 0 ? (
+      <section class="admin-panel">
+        <p class="admin-empty">
+          Belum ada tautan yang tercatat. Ini wajar bila konten belum memuat URL eksternal, atau
+          bila pemeriksaan pertama belum pernah dijalankan (<code>npm run links:check</code>).
+        </p>
+      </section>
+    ) : (
+      <>
+        <section class="admin-panel">
+          <h2>Pemeriksaan terakhir</h2>
+          {lastChecked === 0 ? (
+            <p class="stale stale--never">
+              Belum pernah diperiksa. Jalankan <code>npm run links:check</code>.
+            </p>
+          ) : (
+            <p class:list={['stale', { 'stale--old': daysSince(lastChecked) >= 7 }]}>
+              {formatDateTime(lastChecked)}
+              {daysSince(lastChecked) >= 7 && (
+                <span> — sudah {daysSince(lastChecked)} hari lalu. Laporan ini mungkin basi.</span>
+              )}
+            </p>
+          )}
+
+          <nav class="filters" aria-label="Saring menurut status">
+            <a href="/admin/tautan" aria-current={status === undefined ? 'true' : undefined}>
+              Semua <span>({all.length})</span>
+            </a>
+            {STATUSES.filter((value) => countBy(value) > 0).map((value) => (
+              <a
+                href={`/admin/tautan?status=${value}`}
+                aria-current={status === value ? 'true' : undefined}
+              >
+                <span class={`status status--link-${value}`}>{STATUS_LABEL[value]}</span>
+                <span>({countBy(value)})</span>
+              </a>
+            ))}
+          </nav>
+
+          {rows.length === 0 ? (
+            <p class="admin-empty">Tidak ada tautan dengan status ini.</p>
+          ) : (
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Konten</th>
+                    <th scope="col">Tautan</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Catatan</th>
+                    <th scope="col">Diperiksa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr>
+                      <td class="admin-table__title">
+                        <a href={adminHref(row)}>{row.title ?? '(tanpa judul)'}</a>
+                        <span class="admin-table__meta">
+                          {FIELD_LABEL[row.field] ?? row.field}
+                          {row.unitName ? ` · ${row.unitName}` : ''}
+                        </span>
+                      </td>
+                      <td class="link-cell">
+                        <a href={row.url} target="_blank" rel="noopener nofollow">
+                          {row.url}
+                          <span class="visually-hidden">(membuka situs lain di tab baru)</span>
+                        </a>
+                      </td>
+                      <td>
+                        <span class={`status status--link-${row.status ?? 'unknown'}`}>
+                          {STATUS_LABEL[row.status ?? ''] ?? 'Belum diperiksa'}
+                        </span>
+                      </td>
+                      <td class="note-cell">
+                        {row.error ?? ''}
+                        {row.redirectTarget && (
+                          <span class="note-cell__redirect">→ {row.redirectTarget}</span>
+                        )}
+                        {row.httpStatus && !row.error && !row.redirectTarget && (
+                          <span>HTTP {row.httpStatus}</span>
+                        )}
+                        {row.firstBrokenAt && (
+                          <span class="note-cell__since">
+                            Rusak sejak {formatDateTime(row.firstBrokenAt)}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span class="due">
+                          {row.checkedAt ? formatDateTime(row.checkedAt) : '—'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </>
+    )
+  }
+</AdminLayout>
+
+<style>
+  .stale {
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stale--old,
+  .stale--never {
+    color: var(--color-danger);
+    font-weight: 550;
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-block: var(--space-4);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .filters a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding-inline: var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    text-decoration: none;
+  }
+
+  .filters a:hover {
+    border-color: var(--color-border);
+    color: var(--color-text);
+  }
+
+  .filters a[aria-current] {
+    border-color: var(--color-brand);
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .link-cell {
+    max-width: 26rem;
+  }
+
+  .link-cell a {
+    /* URL panjang tidak boleh melebarkan tabel sampai halaman ikut menggeser. */
+    overflow-wrap: anywhere;
+    font-size: var(--text-meta);
+  }
+
+  .note-cell {
+    max-width: 24rem;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .note-cell span {
+    display: block;
+  }
+
+  .note-cell__redirect {
+    overflow-wrap: anywhere;
+  }
+
+  .note-cell__since {
+    margin-top: 2px;
+    color: var(--color-danger);
+  }
+
+  code {
+    padding-inline: 0.3em;
+    background-color: var(--color-surface-muted);
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+</style>

@@ -29,7 +29,9 @@
     "db:seed:clear": "tsx scripts/db.ts seed:clear",
     "db:status": "tsx scripts/db.ts status",
     "db:studio": "drizzle-kit studio",
-    "admin:user": "tsx scripts/admin.ts"
+    "admin:user": "tsx scripts/admin.ts",
+    "links:check": "tsx scripts/links.ts check",
+    "links:report": "tsx scripts/links.ts report"
   },
   "dependencies": {
     "@astrojs/netlify": "8.2.4",

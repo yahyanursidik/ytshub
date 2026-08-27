@@ -11,6 +11,7 @@ export const prerender = false;
 import AdminLayout from '@/layouts/AdminLayout.astro';
 import WorkQueue from '@/components/admin/WorkQueue.astro';
 import { buildDashboard } from '@/server/admin/dashboard';
+import { listLinks } from '@/server/integrations/link-monitor';
 import { roleFor } from '@/server/auth/roles';
 
 // Middleware menjamin keberadaannya; pemeriksaan ini yang membuat typecheck
@@ -20,14 +21,30 @@ if (!actor) return Astro.redirect('/admin/masuk', 302);
 
 const dashboard = await buildDashboard(actor);
 
+/**
+ * Tautan rusak ikut ditampilkan di dasbor — 08-INTEGRATION §6 meminta "alert ke
+ * admin jika broken". Peringatan yang hanya ada di halaman terpisah hanya
+ * terbaca oleh orang yang sudah curiga; yang perlu tahu justru orang yang tidak.
+ *
+ * Hanya yang berstatus `broken` yang naik ke sini. Peringatan dan pengalihan
+ * ada di /admin/tautan — memunculkan semuanya di dasbor akan membuat bagian ini
+ * penuh terus-menerus dan berhenti berarti.
+ */
+const isOrgWide = roleFor(actor, null) !== null;
+const brokenLinks = await listLinks({
+  status: 'broken',
+  unitIds: isOrgWide
+    ? null
+    : actor.assignments
+        .map((assignment) => assignment.unitId)
+        .filter((unitId): unitId is string => unitId !== null),
+});
+
 const isApprover = actor.assignments.some(
   (assignment) => assignment.role === 'approver' || assignment.role === 'admin',
 );
 
-const scope =
-  roleFor(actor, null) !== null
-    ? 'seluruh unit'
-    : `unit yang Anda kelola (${actor.assignments.length})`;
+const scope = isOrgWide ? 'seluruh unit' : `unit yang Anda kelola (${actor.assignments.length})`;
 
 const COUNT_LABELS: [keyof typeof dashboard.counts, string][] = [
   ['draft', 'Draft'],
@@ -46,6 +63,33 @@ const COUNT_LABELS: [keyof typeof dashboard.counts, string][] = [
       <p>Menampilkan konten dari {scope}.</p>
     </div>
   </div>
+
+  {
+    brokenLinks.length > 0 && (
+      <section class="admin-panel broken" aria-labelledby="tautan-rusak">
+        <h2 id="tautan-rusak">Tautan rusak</h2>
+        <p class="broken__desc">
+          Halaman publik masih menampilkan tautan ini, dan pengunjung yang menekannya tidak sampai
+          ke mana-mana.
+        </p>
+        <ul>
+          {brokenLinks.slice(0, 5).map((row) => (
+            <li>
+              <a href={`/admin/tautan?status=broken`}>{row.title ?? '(tanpa judul)'}</a>
+              <span>{row.error ?? `HTTP ${row.httpStatus}`}</span>
+            </li>
+          ))}
+        </ul>
+        {brokenLinks.length > 5 && (
+          <p class="broken__more">
+            <a href="/admin/tautan?status=broken">
+              Lihat seluruh {brokenLinks.length} tautan rusak
+            </a>
+          </p>
+        )}
+      </section>
+    )
+  }
 
   <WorkQueue
     title="Menunggu tinjauan"
@@ -95,6 +139,46 @@ const COUNT_LABELS: [keyof typeof dashboard.counts, string][] = [
 </AdminLayout>
 
 <style>
+  /* Satu-satunya blok dasbor yang diberi warna bahaya. Kalau setiap antrean
+     berwarna, tidak ada yang menonjol — dan yang ini berarti pengunjung sedang
+     menemui jalan buntu di halaman publik. */
+  .broken {
+    border-color: var(--color-danger);
+    background-color: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface));
+  }
+
+  .broken__desc {
+    max-width: 70ch;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .broken ul {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  .broken li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+    justify-content: space-between;
+    font-size: var(--text-small);
+  }
+
+  .broken li span {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .broken__more {
+    margin-top: var(--space-4);
+    font-size: var(--text-small);
+  }
+
   .counts {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));

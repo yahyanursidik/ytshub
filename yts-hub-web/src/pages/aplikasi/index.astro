@@ -18,8 +18,23 @@ import FilterBar, { type FilterGroup } from '@/components/ui/FilterBar.astro';
 import EmptySection from '@/components/ui/EmptySection.astro';
 import Icon from '@/components/ui/Icon.astro';
 import { listApplications } from '@/server/content/directory-queries';
+import { linkStatusFor } from '@/server/integrations/link-monitor';
 
 const apps = await listApplications();
+
+/**
+ * Status tautan dari pemeriksaan terjadwal (08-INTEGRATION §6).
+ *
+ * Dipakai untuk berkata jujur: tautan yang sudah diketahui rusak tidak boleh
+ * disodorkan seolah-olah berfungsi. Mengirim pengunjung ke halaman mati lebih
+ * buruk daripada mengatakan bahwa sistemnya sedang tidak bisa dibuka — yang
+ * pertama membuatnya mengira dirinya yang salah.
+ */
+const linkStatus = await linkStatusFor(
+  'application',
+  apps.map((app) => app.id),
+);
+const statusOf = (id: string) => linkStatus.get(`${id}:url`) ?? null;
 
 const kindLabel: Record<string, string> = {
   aplikasi: 'Aplikasi',
@@ -76,7 +91,12 @@ const groups: FilterGroup[] = [
                 <p class="app-list__summary">{app.summary}</p>
               </div>
 
-              {app.url ? (
+              {app.url && statusOf(app.id) === 'broken' ? (
+                <p class="app-list__pending app-list__broken">
+                  Sedang tidak bisa dibuka.
+                  <span>Sudah dilaporkan ke unit pemiliknya.</span>
+                </p>
+              ) : app.url ? (
                 <a
                   class="btn btn--secondary app-list__cta"
                   href={app.url}
@@ -196,6 +216,18 @@ const groups: FilterGroup[] = [
 
   .app-list__pending span {
     display: block;
+    font-style: italic;
+  }
+
+  /* Dibedakan dari "tautan belum tersedia": yang ini pernah ada dan sedang
+     rusak, dan pengunjung berhak tahu bedanya. */
+  .app-list__broken {
+    color: var(--color-danger);
+    font-style: normal;
+  }
+
+  .app-list__broken span {
+    color: var(--color-text-muted);
     font-style: italic;
   }
 

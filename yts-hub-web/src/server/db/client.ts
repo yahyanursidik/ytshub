@@ -53,6 +53,17 @@ if (typeof globalThis.WebSocket !== 'undefined') {
   neonConfig.webSocketConstructor = globalThis.WebSocket;
 }
 
+/**
+ * Penutup koneksi milik tiap Database yang dibuat.
+ *
+ * Pool tidak menutup dirinya sendiri. Di function Netlify itu tidak masalah —
+ * instance-nya berumur pendek — tetapi di test dan skrip CLI, setiap berkas
+ * membuat pool sendiri dan meninggalkannya terbuka. Koneksi yang menumpuk ke
+ * Postgres terkelola berujung pada kegagalan yang terlihat acak: satu test
+ * gagal karena kehabisan koneksi, lalu lolos saat dijalankan ulang.
+ */
+const closers = new WeakMap<object, () => Promise<void>>();
+
 export function createDatabase(): Database {
   const { databaseUrl, isNeon } = getServerEnv();
 
@@ -60,10 +71,9 @@ export function createDatabase(): Database {
     // Pool, bukan koneksi tunggal: satu instance function melayani banyak request
     // berurutan, dan transaksi butuh koneksi yang dipegang selama blok berjalan.
     const pool = new Pool({ connectionString: databaseUrl, max: 3 });
-    return drizzleNeon(pool, {
-      schema,
-      casing: 'snake_case',
-    }) as unknown as Database;
+    const db = drizzleNeon(pool, { schema, casing: 'snake_case' }) as unknown as Database;
+    closers.set(db, () => pool.end());
+    return db;
   }
 
   const client = postgres(databaseUrl, {
@@ -71,7 +81,33 @@ export function createDatabase(): Database {
     // Build statis membuat banyak query pendek; jangan tahan koneksi menganggur.
     idle_timeout: 20,
   });
-  return drizzlePostgres(client, { schema, casing: 'snake_case' });
+  const db = drizzlePostgres(client, { schema, casing: 'snake_case' });
+  closers.set(db, () => client.end());
+  return db;
+}
+
+/**
+ * Menutup koneksi sebuah Database. Aman dipanggil berkali-kali.
+ *
+ * Dipakai test dan skrip CLI. Halaman dan endpoint TIDAK memanggilnya: koneksi
+ * dipakai bersama seluruh permintaan pada instance yang sama, dan menutupnya
+ * setelah satu permintaan akan memaksa pembukaan ulang pada permintaan berikutnya.
+ */
+export async function closeDatabase(db?: Database): Promise<void> {
+  const target = db ?? instance;
+  if (!target) return;
+
+  const close = closers.get(target);
+  closers.delete(target);
+  if (target === instance) instance = null;
+
+  try {
+    await close?.();
+  } catch (error) {
+    // Menutup koneksi adalah pembersihan; kegagalannya tidak boleh menutupi
+    // hasil test atau membuat skrip yang sudah selesai terlihat gagal.
+    console.error('[db] gagal menutup koneksi:', error);
+  }
 }
 
 let instance: Database | null = null;

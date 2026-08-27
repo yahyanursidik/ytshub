@@ -476,3 +476,36 @@
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-border);
 }
+
+/* ------------------------------------------- status tautan eksternal (Fase 6) */
+
+/*
+ * Memakai bentuk yang sama dengan status lifecycle: titik + label + border,
+ * bukan warna saja (09-A11Y §3). Warnanya sengaja berbeda dari status konten —
+ * keduanya muncul di halaman yang sama dan tidak boleh tertukar.
+ */
+.status--link-healthy {
+  color: var(--color-status-live);
+  border-color: color-mix(in srgb, var(--color-status-live) 45%, transparent);
+}
+
+.status--link-redirected {
+  color: var(--color-text-link);
+  border-color: color-mix(in srgb, var(--color-text-link) 40%, transparent);
+}
+
+.status--link-warning {
+  color: var(--c-accent-warm);
+  border-color: color-mix(in srgb, var(--c-accent-warm) 50%, transparent);
+}
+
+.status--link-broken {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+  background-color: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+.status--link-unknown {
+  color: var(--color-text-muted);
+  border-style: dashed;
+}

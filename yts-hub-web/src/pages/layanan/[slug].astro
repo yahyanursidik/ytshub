@@ -14,6 +14,7 @@ import DetailSection from '@/components/ui/DetailSection.astro';
 import RelatedBlock from '@/components/ui/RelatedBlock.astro';
 import Icon from '@/components/ui/Icon.astro';
 import { getServiceDetail, listServices } from '@/server/content/directory-queries';
+import { linkStatusFor } from '@/server/integrations/link-monitor';
 
 export async function getStaticPaths() {
   const services = await listServices();
@@ -29,9 +30,18 @@ if (!detail) {
 
 const { service, audiences, relatedFaqs, relatedPrograms, contacts } = detail;
 
-/** CTA eksternal hanya berlaku bila URL-nya benar-benar sudah ada. */
-const hasExternalCta = service.isExternal && Boolean(service.ctaUrl);
-const hasInternalCta = !service.isExternal && Boolean(service.ctaUrl);
+/**
+ * Tautan yang sudah diketahui rusak tidak disodorkan sebagai tombol
+ * (08-INTEGRATION §6). Halaman ini adalah tempat pengunjung diarahkan keluar
+ * YTS Hub; mengirimnya ke halaman mati membuatnya mengira dirinya yang salah,
+ * lalu mencoba berulang kali sebelum menyerah.
+ */
+const linkStatus = await linkStatusFor('service', [service.id]);
+const ctaBroken = linkStatus.get(`${service.id}:ctaUrl`) === 'broken';
+
+/** CTA eksternal hanya berlaku bila URL-nya benar-benar sudah ada dan hidup. */
+const hasExternalCta = service.isExternal && Boolean(service.ctaUrl) && !ctaBroken;
+const hasInternalCta = !service.isExternal && Boolean(service.ctaUrl) && !ctaBroken;
 
 const contactItems = contacts.map((contact) => ({
   href: '/hubungi-kami',
@@ -93,6 +103,15 @@ const contactItems = contacts.map((contact) => ({
               {service.ctaLabel}
               <Icon name="arrow-right" size={16} />
             </a>
+          )
+        }
+        {
+          ctaBroken && (
+            <p class="cta-block__broken">
+              Sistem yang menangani layanan ini sedang tidak bisa dibuka. Keadaan ini sudah
+              tercatat dan dilaporkan ke unit pemiliknya. Sementara itu, hubungi mereka lewat{' '}
+              <a href="/hubungi-kami">kanal resmi YTS</a>.
+            </p>
           )
         }
         {
@@ -173,6 +192,12 @@ const contactItems = contacts.map((contact) => ({
 
   .cta-block__pending {
     font-style: italic;
+  }
+
+  /* "Rusak" dibedakan dari "belum tersedia": yang satu perlu ditunggu, yang
+     lain sedang ditangani. Pengunjung menyikapinya berbeda. */
+  .cta-block__broken {
+    font-weight: 550;
   }
 
   @media (min-width: 960px) {

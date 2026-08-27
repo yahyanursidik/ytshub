@@ -13,9 +13,9 @@
  * Di-skip otomatis bila DATABASE_URL_TEST kosong.
  */
 import { eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createDatabase, schema } from '@/server/db/client';
+import { closeDatabase, createDatabase, schema } from '@/server/db/client';
 import { runMigrations } from '@/server/db/migrate';
 import { runSeed } from '@/server/db/seed';
 import {
@@ -79,6 +79,13 @@ describeDb('governance konten', () => {
       .values({ id: 'user-uji', name: 'Uji', email: 'uji@yts.test' })
       .onConflictDoNothing();
   }, 60_000);
+  // Menutup pool koneksi setelah berkas ini selesai. Tiap berkas test membuka
+  // pool sendiri; membiarkannya terbuka membuat koneksi menumpuk sampai ada
+  // test yang gagal karena kehabisan koneksi, bukan karena kodenya salah.
+  afterAll(async () => {
+    await closeDatabase(db);
+  });
+
 
   beforeEach(async () => {
     // Seed ulang agar status yang diubah satu test tidak terbawa ke test lain.
