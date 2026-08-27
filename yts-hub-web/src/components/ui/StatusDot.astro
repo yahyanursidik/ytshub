@@ -1,0 +1,50 @@
+---
+/**
+ * Penanda status. Warna SELALU disertai teks — 09-A11Y §3 melarang warna menjadi
+ * satu-satunya pembawa status.
+ */
+interface Props {
+  status: 'berjalan' | 'akan-datang' | 'selesai';
+}
+
+const { status } = Astro.props;
+
+const label: Record<Props['status'], string> = {
+  berjalan: 'Berjalan',
+  'akan-datang': 'Akan datang',
+  selesai: 'Selesai',
+};
+---
+
+<span class="status" data-status={status}>
+  <span class="status__dot" aria-hidden="true"></span>
+  {label[status]}
+</span>
+
+<style>
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .status__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--color-status-done);
+  }
+
+  .status[data-status='berjalan'] .status__dot {
+    background-color: var(--color-status-live);
+  }
+
+  .status[data-status='akan-datang'] .status__dot {
+    background-color: var(--color-status-soon);
+  }
+</style>

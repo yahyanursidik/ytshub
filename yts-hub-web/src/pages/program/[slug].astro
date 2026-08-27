@@ -1,20 +1,286 @@
 ---
-/** Detail program. Isi pada Fase 3. */
+/**
+ * Detail Program — struktur dari 02-INFORMATION-ARCHITECTURE.md §5:
+ * Ringkasan → Untuk siapa → Jadwal/status → Cara mengikuti → FAQ terkait → CTA layanan.
+ *
+ * Berbeda dari halaman layanan: di sini fakta jadwal dan status naik ke atas sebagai
+ * ringkasan padat, karena itu yang pertama dicari orang dari sebuah program.
+ */
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { getProgramSlugs } from '@/server/content/public-queries';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import DetailSection from '@/components/ui/DetailSection.astro';
+import RelatedBlock from '@/components/ui/RelatedBlock.astro';
+import StatusDot from '@/components/ui/StatusDot.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { getProgramDetail, listPrograms } from '@/server/content/directory-queries';
 
 export async function getStaticPaths() {
-  const programs = await getProgramSlugs();
-  return programs.map((program) => ({
-    params: { slug: program.slug },
-    props: { title: program.title, summary: program.summary },
-  }));
+  const programs = await listPrograms();
+  return programs.map((program) => ({ params: { slug: program.slug } }));
 }
 
-const { title, summary } = Astro.props;
+const { slug } = Astro.params;
+const detail = await getProgramDetail(slug!);
+
+if (!detail) {
+  return Astro.rewrite('/404');
+}
+
+const { program, audiences, relatedServices, relatedFaqs, relatedEvents } = detail;
+
+const formatLabel: Record<string, string> = {
+  onsite: 'Tatap muka',
+  online: 'Daring',
+  hybrid: 'Hybrid',
+};
 ---
 
-<BaseLayout title={title} description={summary} noindex>
-  <PhasePlaceholder title={title} phase="Fase 3 — Public Directory Routes" describes={summary} />
+<BaseLayout
+  title={program.seoTitle ?? program.title}
+  description={program.seoDescription ?? program.summary}
+  canonicalPath={`/program/${program.slug}`}
+>
+  <PageHeader
+    eyebrow={program.category}
+    title={program.title}
+    lead={program.summary}
+    crumbs={[
+      { label: 'Beranda', href: '/' },
+      { label: 'Program', href: '/program' },
+      { label: program.title },
+    ]}
+  >
+    <p class="owner">
+      Diselenggarakan oleh <a href={`/unit/${program.unitSlug}`}>{program.unitTitle}</a>
+    </p>
+  </PageHeader>
+
+  <div class="container">
+    <!-- Fakta kunci di atas: status, untuk siapa, jadwal. -->
+    <dl class="facts">
+      <div>
+        <dt>Status</dt>
+        <dd><StatusDot status={program.programStatus} /></dd>
+      </div>
+      <div>
+        <dt>Untuk siapa</dt>
+        <dd>
+          {audiences.length > 0 ? audiences.map((a) => a.label).join(', ') : 'Belum ditentukan'}
+        </dd>
+      </div>
+      <div>
+        <dt>Jadwal</dt>
+        <dd>
+          {
+            program.scheduleSummary && !program.scheduleSummary.includes('PLACEHOLDER') ? (
+              program.scheduleSummary
+            ) : (
+              <span class="facts__pending">Menunggu data resmi unit</span>
+            )
+          }
+        </dd>
+      </div>
+      {
+        program.locationSummary && (
+          <div>
+            <dt>Lokasi</dt>
+            <dd>{program.locationSummary}</dd>
+          </div>
+        )
+      }
+    </dl>
+  </div>
+
+  <div class="container detail">
+    <div class="detail__main">
+      <DetailSection title="Tentang program" content={program.description ?? program.summary} />
+
+      <div class="how">
+        <h2>Cara mengikuti</h2>
+        {
+          relatedServices.length > 0 ? (
+            <>
+              <p>Program ini diakses melalui layanan berikut:</p>
+              <ul class="how__services">
+                {relatedServices.map((service) => (
+                  <li>
+                    <a href={`/layanan/${service.slug}`}>
+                      <span class="how__name">{service.title}</span>
+                      <span class="how__note">{service.summary}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p class="how__pending">
+              Cara mengikuti program ini belum dicantumkan. Hubungi
+              <a href={`/unit/${program.unitSlug}`}>{program.unitTitle}</a> untuk informasi terbaru.
+            </p>
+          )
+        }
+      </div>
+    </div>
+
+    <aside class="detail__aside">
+      <RelatedBlock
+        title="Pertanyaan terkait"
+        items={relatedFaqs.map((faq) => ({
+          href: `/faq/${faq.slug}`,
+          label: faq.question,
+          note: faq.summary,
+        }))}
+        moreHref="/faq"
+        moreLabel="Semua FAQ"
+      />
+      <RelatedBlock
+        title="Event terkait"
+        items={relatedEvents.map((event) => ({
+          href: `/event/${event.slug}`,
+          label: event.title,
+          note: formatLabel[event.format] ?? event.format,
+        }))}
+        moreHref="/event"
+        moreLabel="Semua event"
+      />
+      <RelatedBlock
+        title="Unit penyelenggara"
+        items={[
+          {
+            href: `/unit/${program.unitSlug}`,
+            label: program.unitTitle,
+            note: 'Lihat seluruh program dan layanan unit ini',
+          },
+        ]}
+      />
+    </aside>
+  </div>
+
+  <div class="container">
+    <p class="back">
+      <a class="link-action" href="/program">
+        <Icon name="arrow-right" size={15} />
+        Semua program
+      </a>
+    </p>
+  </div>
 </BaseLayout>
+
+<style>
+  .owner {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .facts {
+    display: grid;
+    gap: var(--space-6);
+    padding-block: var(--space-8);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .facts dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .facts dd {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-small);
+  }
+
+  .facts__pending {
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  .detail {
+    display: grid;
+    gap: var(--space-12);
+    padding-block: var(--space-12) var(--space-8);
+  }
+
+  .detail__aside {
+    display: grid;
+    gap: var(--space-8);
+    align-content: start;
+  }
+
+  .how {
+    margin-top: var(--space-12);
+  }
+
+  .how h2 {
+    font-size: var(--text-h3);
+  }
+
+  .how > p {
+    max-width: 56ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .how__pending {
+    font-style: italic;
+  }
+
+  .how__services {
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .how__services li {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .how__services a {
+    display: block;
+    padding-block: var(--space-4);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .how__name {
+    font-weight: 600;
+  }
+
+  .how__services a:hover .how__name {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .how__note {
+    display: block;
+    max-width: 60ch;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .back {
+    padding-block: var(--space-4) var(--space-8);
+  }
+
+  .back :global(svg) {
+    rotate: 180deg;
+  }
+
+  @media (min-width: 720px) {
+    .facts {
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+      gap: var(--space-8);
+    }
+  }
+
+  @media (min-width: 960px) {
+    .detail {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: var(--space-16);
+    }
+  }
+</style>

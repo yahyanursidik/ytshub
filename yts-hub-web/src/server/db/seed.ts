@@ -12,6 +12,8 @@ import {
   SEED_CODE_PREFIX,
   seedApplications,
   seedAudiences,
+  seedContacts,
+  seedEvents,
   seedFaqCategories,
   seedFaqs,
   seedPrograms,
@@ -60,6 +62,16 @@ export async function clearSeed(db: Db): Promise<void> {
     await db
       .delete(schema.servicesToAudiences)
       .where(inArray(schema.servicesToAudiences.serviceId, serviceIds));
+  }
+
+  // Contacts tidak punya kolom `code`; dihapus lewat unit pemiliknya yang berkode DEV-.
+  const devUnits = await db
+    .select({ id: schema.units.id })
+    .from(schema.units)
+    .where(like(schema.units.code, devCode));
+  const unitIds = devUnits.map((row) => row.id);
+  if (unitIds.length) {
+    await db.delete(schema.contacts).where(inArray(schema.contacts.ownerUnitId, unitIds));
   }
 
   await db.delete(schema.faqs).where(like(schema.faqs.code, devCode));
@@ -245,6 +257,42 @@ export async function runSeed(db: Db): Promise<void> {
     await db.insert(schema.faqsToPrograms).values(faqProgramLinks).onConflictDoNothing();
   }
 
+  // ---- events ----
+  await db.insert(schema.events).values(
+    seedEvents.map((event) => {
+      const relatedProgramId = event.relatedProgramSlug
+        ? (programIdBySlug.get(event.relatedProgramSlug) ?? null)
+        : null;
+      return {
+        code: event.code,
+        slug: event.slug,
+        title: event.title,
+        summary: event.summary,
+        organizerUnitId: requireUnit(event.organizerUnitSlug),
+        format: event.format,
+        location: event.location,
+        speakerSummary: event.speakerSummary,
+        relatedProgramId,
+        status: 'published' as const,
+        visibility: 'public' as const,
+        publishedAt,
+        reviewedAt: publishedAt,
+      };
+    }),
+  );
+
+  // ---- contacts ----
+  await db.insert(schema.contacts).values(
+    seedContacts.map((contact) => ({
+      ownerUnitId: requireUnit(contact.ownerUnitSlug),
+      label: contact.label,
+      channel: contact.channel,
+      value: contact.value,
+      note: contact.note,
+      isPublic: true,
+    })),
+  );
+
   // ---- applications & websites ----
   await db.insert(schema.applications).values(
     seedApplications.map((app) => ({
@@ -268,7 +316,7 @@ export async function runSeed(db: Db): Promise<void> {
 
 /** Ringkasan untuk output CLI dan assertion di test. */
 export async function seedSummary(db: Db) {
-  const [units, services, programs, faqs, applications] = await Promise.all([
+  const [units, services, programs, faqs, applications, events] = await Promise.all([
     db.select({ id: schema.units.id }).from(schema.units).where(like(schema.units.code, devCode)),
     db
       .select({ id: schema.services.id })
@@ -283,6 +331,10 @@ export async function seedSummary(db: Db) {
       .select({ id: schema.applications.id })
       .from(schema.applications)
       .where(like(schema.applications.code, devCode)),
+    db
+      .select({ id: schema.events.id })
+      .from(schema.events)
+      .where(like(schema.events.code, devCode)),
   ]);
 
   return {
@@ -291,5 +343,6 @@ export async function seedSummary(db: Db) {
     programs: programs.length,
     faqs: faqs.length,
     applications: applications.length,
+    events: events.length,
   };
 }

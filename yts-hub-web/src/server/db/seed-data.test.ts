@@ -93,7 +93,13 @@ describe('seed: integritas struktur', () => {
   const categorySlugs = new Set(seedFaqCategories.map((category) => category.slug));
 
   it('setiap baris seed diberi prefix DEV- agar bisa dihapus massal', () => {
-    for (const row of [...seedUnits, ...seedServices, ...seedPrograms, ...seedFaqs, ...seedApplications]) {
+    for (const row of [
+      ...seedUnits,
+      ...seedServices,
+      ...seedPrograms,
+      ...seedFaqs,
+      ...seedApplications,
+    ]) {
       expect(row.code.startsWith(SEED_CODE_PREFIX)).toBe(true);
     }
   });

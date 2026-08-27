@@ -1,0 +1,260 @@
+---
+/**
+ * Detail Event — 02-INFORMATION-ARCHITECTURE.md §5.
+ *
+ * Paling ringkas di antara semua halaman detail: yang dibutuhkan pengguna dari
+ * sebuah event hanya kapan, di mana, siapa, dan bagaimana ikut. Tidak perlu
+ * dipanjangkan supaya "seimbang" dengan halaman lain.
+ *
+ * Tanggal termasuk yang dilarang dikarang (05-HALLMARK §7), jadi selama unit
+ * pemilik belum mengisi, halaman menyatakan itu apa adanya.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import RelatedBlock from '@/components/ui/RelatedBlock.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { getEventDetail, listEvents } from '@/server/content/directory-queries';
+
+export async function getStaticPaths() {
+  const events = await listEvents();
+  return events.map((event) => ({ params: { slug: event.slug } }));
+}
+
+const { slug } = Astro.params;
+const detail = await getEventDetail(slug!);
+
+if (!detail) {
+  return Astro.rewrite('/404');
+}
+
+const { event, relatedProgram, otherEvents, contacts } = detail;
+
+const formatLabel: Record<string, string> = {
+  onsite: 'Tatap muka',
+  online: 'Daring',
+  hybrid: 'Hybrid',
+};
+
+const dateFormatter = new Intl.DateTimeFormat('id-ID', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'Asia/Jakarta',
+});
+
+const isPending = (value: string | null) => !value || value.startsWith('PLACEHOLDER');
+---
+
+<BaseLayout
+  title={event.seoTitle ?? event.title}
+  description={event.seoDescription ?? event.summary}
+  canonicalPath={`/event/${event.slug}`}
+>
+  <PageHeader
+    eyebrow={formatLabel[event.format] ?? event.format}
+    title={event.title}
+    lead={event.summary}
+    crumbs={[
+      { label: 'Beranda', href: '/' },
+      { label: 'Event', href: '/event' },
+      { label: event.title },
+    ]}
+  >
+    <p class="owner">
+      Diselenggarakan oleh <a href={`/unit/${event.unitSlug}`}>{event.unitTitle}</a>
+    </p>
+  </PageHeader>
+
+  <div class="container detail">
+    <div class="detail__main">
+      <dl class="facts">
+        <div>
+          <dt>Waktu</dt>
+          <dd>
+            {
+              event.startAt ? (
+                <time datetime={event.startAt.toISOString()}>
+                  {dateFormatter.format(event.startAt)}
+                </time>
+              ) : (
+                <span class="pending">Jadwal belum ditetapkan unit penyelenggara</span>
+              )
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Format</dt>
+          <dd>{formatLabel[event.format] ?? event.format}</dd>
+        </div>
+        <div>
+          <dt>Lokasi</dt>
+          <dd>
+            {
+              isPending(event.location) ? (
+                <span class="pending">
+                  {event.format === 'online'
+                    ? 'Daring — tautan menyusul'
+                    : 'Menunggu data resmi unit'}
+                </span>
+              ) : (
+                event.location
+              )
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Pembicara</dt>
+          <dd>
+            {
+              isPending(event.speakerSummary) ? (
+                <span class="pending">Menunggu data resmi unit</span>
+              ) : (
+                event.speakerSummary
+              )
+            }
+          </dd>
+        </div>
+      </dl>
+
+      <div class="cta-block">
+        <h2>Cara mengikuti</h2>
+        {
+          event.registrationUrl ? (
+            <>
+              <p>Pendaftaran ditangani oleh sistem milik {event.unitTitle}.</p>
+              <a
+                class="btn btn--primary"
+                href={event.registrationUrl}
+                target="_blank"
+                rel="noopener"
+              >
+                Daftar
+                <Icon name="external" size={16} />
+                <span class="visually-hidden">— membuka sistem lain di tab baru</span>
+              </a>
+            </>
+          ) : (
+            <p class="pending">
+              Tautan pendaftaran belum tersedia. Hubungi
+              <a href={`/unit/${event.unitSlug}`}>{event.unitTitle}</a> lewat kanal resmi untuk
+              informasi terbaru.
+            </p>
+          )
+        }
+      </div>
+    </div>
+
+    <aside class="detail__aside">
+      <RelatedBlock
+        title="Bagian dari program"
+        items={relatedProgram
+          ? [
+              {
+                href: `/program/${relatedProgram.slug}`,
+                label: relatedProgram.title,
+                note: relatedProgram.summary,
+              },
+            ]
+          : []}
+      />
+      <RelatedBlock
+        title="Event lainnya"
+        items={otherEvents.map((other) => ({
+          href: `/event/${other.slug}`,
+          label: other.title,
+          note: formatLabel[other.format] ?? other.format,
+        }))}
+        moreHref="/event"
+        moreLabel="Semua event"
+      />
+      <RelatedBlock
+        title="Kontak penyelenggara"
+        items={contacts.map((contact) => ({
+          href: '/hubungi-kami',
+          label: `${contact.label} (${contact.channel})`,
+          note: contact.value ?? 'Kanal resmi — nilai kontak menunggu data dari unit pemilik.',
+        }))}
+      />
+    </aside>
+  </div>
+</BaseLayout>
+
+<style>
+  .owner {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .detail {
+    display: grid;
+    gap: var(--space-12);
+    padding-block: var(--space-8);
+  }
+
+  .detail__aside {
+    display: grid;
+    gap: var(--space-8);
+    align-content: start;
+  }
+
+  .facts {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .facts dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .facts dd {
+    margin: var(--space-2) 0 0;
+  }
+
+  .pending {
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  .cta-block {
+    margin-top: var(--space-12);
+    padding: var(--space-6);
+    background-color: var(--color-surface-brand);
+    border-radius: var(--radius-panel);
+  }
+
+  .cta-block h2 {
+    font-size: var(--text-h3);
+  }
+
+  .cta-block p {
+    max-width: 52ch;
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
+  }
+
+  .cta-block .btn {
+    margin-top: var(--space-4);
+  }
+
+  @media (min-width: 620px) {
+    .facts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-8);
+    }
+  }
+
+  @media (min-width: 960px) {
+    .detail {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: var(--space-16);
+    }
+  }
+</style>

@@ -1,0 +1,66 @@
+---
+/**
+ * Satu blok konten pada halaman detail (Persyaratan, Alur, Cara mengikuti, dst).
+ *
+ * Progressive disclosure (01-PRODUCT-BRIEF §7): blok yang isinya masih PLACEHOLDER
+ * tetap ditampilkan dengan jujur sebagai "belum tersedia" — bukan disembunyikan
+ * (pengguna jadi mengira tidak ada persyaratan) dan bukan diisi karangan.
+ */
+interface Props {
+  title: string;
+  /** Isi dari database. null/kosong berarti unit pemilik belum mengisinya. */
+  content?: string | null;
+  id?: string;
+}
+
+const { title, content = null, id } = Astro.props;
+
+const isPlaceholder = Boolean(content && content.startsWith('PLACEHOLDER'));
+const isEmpty = !content;
+---
+
+<section class="detail-section" id={id}>
+  <h2>{title}</h2>
+  {
+    isEmpty || isPlaceholder ? (
+      <p class="detail-section__pending">
+        Belum tersedia. Informasi ini menunggu data resmi dari unit pemilik.
+      </p>
+    ) : (
+      <div class="detail-section__body">
+        {content!.split('\n\n').map((paragraph) => (
+          <p>{paragraph}</p>
+        ))}
+      </div>
+    )
+  }
+</section>
+
+<style>
+  .detail-section + :global(.detail-section) {
+    margin-top: var(--space-8);
+  }
+
+  .detail-section h2 {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .detail-section__body {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+    max-width: 68ch;
+  }
+
+  .detail-section__pending {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    font-style: italic;
+  }
+</style>

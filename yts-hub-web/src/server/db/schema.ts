@@ -463,12 +463,18 @@ export const contactsRelations = relations(contacts, ({ one }) => ({
 
 export const servicesToAudiencesRelations = relations(servicesToAudiences, ({ one }) => ({
   service: one(services, { fields: [servicesToAudiences.serviceId], references: [services.id] }),
-  audience: one(audiences, { fields: [servicesToAudiences.audienceId], references: [audiences.id] }),
+  audience: one(audiences, {
+    fields: [servicesToAudiences.audienceId],
+    references: [audiences.id],
+  }),
 }));
 
 export const programsToAudiencesRelations = relations(programsToAudiences, ({ one }) => ({
   program: one(programs, { fields: [programsToAudiences.programId], references: [programs.id] }),
-  audience: one(audiences, { fields: [programsToAudiences.audienceId], references: [audiences.id] }),
+  audience: one(audiences, {
+    fields: [programsToAudiences.audienceId],
+    references: [audiences.id],
+  }),
 }));
 
 export const programsToServicesRelations = relations(programsToServices, ({ one }) => ({

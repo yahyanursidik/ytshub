@@ -1,20 +1,184 @@
 ---
-/** Detail layanan — route sesuai 02-INFORMATION-ARCHITECTURE.md §8. Isi pada Fase 3. */
+/**
+ * Detail Layanan — struktur konten dari 02-INFORMATION-ARCHITECTURE.md §5:
+ * Untuk siapa → Persyaratan → Alur → Biaya/infak → FAQ → Buka layanan.
+ *
+ * CTA "buka layanan" tidak diletakkan di paling atas dengan sengaja: 08-INTEGRATION §5
+ * mensyaratkan pengguna memahami konteks sebelum diarahkan ke sistem lain.
+ * Tetapi CTA juga tidak boleh tersembunyi, jadi ia diulang sekali di panel samping
+ * (desktop) — satu tindakan yang sama, bukan dua CTA berbeda.
+ */
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { getServiceSlugs } from '@/server/content/public-queries';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import DetailSection from '@/components/ui/DetailSection.astro';
+import RelatedBlock from '@/components/ui/RelatedBlock.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { getServiceDetail, listServices } from '@/server/content/directory-queries';
 
 export async function getStaticPaths() {
-  const services = await getServiceSlugs();
-  return services.map((service) => ({
-    params: { slug: service.slug },
-    props: { title: service.title, summary: service.summary },
-  }));
+  const services = await listServices();
+  return services.map((service) => ({ params: { slug: service.slug } }));
 }
 
-const { title, summary } = Astro.props;
+const { slug } = Astro.params;
+const detail = await getServiceDetail(slug!);
+
+if (!detail) {
+  return Astro.rewrite('/404');
+}
+
+const { service, audiences, relatedFaqs, relatedPrograms, contacts } = detail;
+
+/** CTA eksternal hanya berlaku bila URL-nya benar-benar sudah ada. */
+const hasExternalCta = service.isExternal && Boolean(service.ctaUrl);
+const hasInternalCta = !service.isExternal && Boolean(service.ctaUrl);
+
+const contactItems = contacts.map((contact) => ({
+  href: '/hubungi-kami',
+  label: `${contact.label} (${contact.channel})`,
+  note: contact.value ?? 'Kanal resmi — nilai kontak menunggu data dari unit pemilik.',
+}));
 ---
 
-<BaseLayout title={title} description={summary} noindex>
-  <PhasePlaceholder title={title} phase="Fase 3 — Public Directory Routes" describes={summary} />
+<BaseLayout
+  title={service.seoTitle ?? service.title}
+  description={service.seoDescription ?? service.summary}
+  canonicalPath={`/layanan/${service.slug}`}
+>
+  <PageHeader
+    eyebrow={service.category}
+    title={service.title}
+    lead={service.summary}
+    crumbs={[
+      { label: 'Beranda', href: '/' },
+      { label: 'Layanan', href: '/layanan' },
+      { label: service.title },
+    ]}
+  >
+    <p class="owner">
+      Dikelola oleh <a href={`/unit/${service.unitSlug}`}>{service.unitTitle}</a>
+    </p>
+  </PageHeader>
+
+  <div class="container detail">
+    <div class="detail__main">
+      <DetailSection
+        title="Untuk siapa"
+        content={audiences.length > 0 ? audiences.map((a) => a.label).join(', ') : null}
+      />
+      <DetailSection title="Persyaratan" content={service.requirements} />
+      <DetailSection title="Alur" content={service.processSteps} />
+      <DetailSection title="Biaya / infak" content={service.feeInformation} />
+
+      <div class="cta-block">
+        <h2>Buka layanan</h2>
+        {
+          hasExternalCta && (
+            <>
+              <p>
+                Layanan ini ditangani oleh sistem milik {service.unitTitle}. Anda akan keluar dari
+                YTS Hub.
+              </p>
+              <a class="btn btn--primary" href={service.ctaUrl!} target="_blank" rel="noopener">
+                {service.ctaLabel}
+                <Icon name="external" size={16} />
+                <span class="visually-hidden">— membuka sistem lain di tab baru</span>
+              </a>
+            </>
+          )
+        }
+        {
+          hasInternalCta && (
+            <a class="btn btn--primary" href={service.ctaUrl!}>
+              {service.ctaLabel}
+              <Icon name="arrow-right" size={16} />
+            </a>
+          )
+        }
+        {
+          !service.ctaUrl && (
+            <p class="cta-block__pending">
+              Tautan resmi ke sistem yang menangani layanan ini belum tersedia. Sementara itu,
+              hubungi unit pemiliknya lewat <a href="/hubungi-kami">kanal resmi YTS</a>.
+            </p>
+          )
+        }
+      </div>
+    </div>
+
+    <aside class="detail__aside">
+      <RelatedBlock
+        title="Pertanyaan terkait"
+        items={relatedFaqs.map((faq) => ({
+          href: `/faq/${faq.slug}`,
+          label: faq.question,
+          note: faq.summary,
+        }))}
+        moreHref="/faq"
+        moreLabel="Semua FAQ"
+      />
+      <RelatedBlock
+        title="Program terkait"
+        items={relatedPrograms.map((program) => ({
+          href: `/program/${program.slug}`,
+          label: program.title,
+          note: program.summary,
+        }))}
+      />
+      <RelatedBlock title="Kontak unit" items={contactItems} />
+    </aside>
+  </div>
 </BaseLayout>
+
+<style>
+  .owner {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .detail {
+    display: grid;
+    gap: var(--space-12);
+    padding-block: var(--space-12) var(--space-8);
+  }
+
+  .detail__aside {
+    display: grid;
+    gap: var(--space-8);
+    align-content: start;
+  }
+
+  .cta-block {
+    margin-top: var(--space-12);
+    padding: var(--space-6);
+    background-color: var(--color-surface-brand);
+    border-radius: var(--radius-panel);
+  }
+
+  .cta-block h2 {
+    font-size: var(--text-h3);
+  }
+
+  .cta-block p {
+    max-width: 52ch;
+    margin-top: var(--space-2);
+    color: var(--color-text);
+    font-size: var(--text-small);
+  }
+
+  .cta-block .btn {
+    margin-top: var(--space-4);
+  }
+
+  .cta-block__pending {
+    font-style: italic;
+  }
+
+  @media (min-width: 960px) {
+    .detail {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: var(--space-16);
+    }
+  }
+</style>

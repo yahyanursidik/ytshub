@@ -1,0 +1,212 @@
+---
+/**
+ * Katalog Layanan — 02-INFORMATION-ARCHITECTURE.md §5.
+ * Bentuk: card grid. Ini satu-satunya listing yang memakai card penuh, karena
+ * tiap layanan adalah tindakan yang berdiri sendiri dan punya CTA sendiri —
+ * berbeda dari unit/event yang lebih tepat sebagai daftar.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import FilterBar, { type FilterGroup } from '@/components/ui/FilterBar.astro';
+import EmptySection from '@/components/ui/EmptySection.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { listServices } from '@/server/content/directory-queries';
+
+const services = await listServices();
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+const categories = [...new Set(services.map((service) => service.category))];
+const audienceOptions = [...new Set(services.flatMap((s) => s.audiences.map((a) => a.slug)))];
+const audienceLabel = new Map(
+  services.flatMap((s) => s.audiences).map((a) => [a.slug, a.label] as const),
+);
+
+const groups: FilterGroup[] = [
+  {
+    param: 'kategori',
+    legend: 'Kategori',
+    options: categories.map((category) => ({
+      label: category,
+      value: slugify(category),
+      count: services.filter((service) => service.category === category).length,
+    })),
+  },
+  {
+    param: 'untuk',
+    legend: 'Untuk',
+    options: audienceOptions.map((slug) => ({
+      label: audienceLabel.get(slug) ?? slug,
+      value: slug,
+      count: services.filter((s) => s.audiences.some((a) => a.slug === slug)).length,
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title="Layanan"
+  description="Katalog layanan resmi Yayasan Tarbiyah Sunnah beserta persyaratan, alur, dan pintu masuk ke sistem pemiliknya."
+  canonicalPath="/layanan"
+>
+  <PageHeader
+    eyebrow="Direktori"
+    title="Layanan YTS"
+    lead="Mulai dari sini bila Anda sudah tahu tindakan yang ingin dilakukan. Setiap layanan menjelaskan persyaratan dan alurnya sebelum Anda membuka sistem yang menanganinya."
+    crumbs={[{ label: 'Beranda', href: '/' }, { label: 'Layanan' }]}
+  />
+
+  <div class="container">
+    <FilterBar groups={groups} basePath="/layanan" noun="layanan" />
+
+    {services.length === 0 && <EmptySection message="Belum ada layanan yang dipublikasikan." />}
+
+    <ul class="service-grid" data-filter-list>
+      {
+        services.map((service) => (
+          <li
+            data-filter-item
+            data-kategori={slugify(service.category)}
+            data-untuk={service.audiences.map((a) => a.slug).join(' ')}
+          >
+            <article class="service-card">
+              <p class="service-card__meta">
+                <span>{service.category}</span>
+                <a href={`/unit/${service.unitSlug}`}>{service.unitName}</a>
+              </p>
+              <h2>
+                <a href={`/layanan/${service.slug}`}>{service.title}</a>
+              </h2>
+              <p class="service-card__summary">{service.summary}</p>
+              {service.audiences.length > 0 && (
+                <p class="service-card__audience">
+                  Untuk: {service.audiences.map((a) => a.label).join(', ')}
+                </p>
+              )}
+              <p class="service-card__cta">
+                <a class="link-action" href={`/layanan/${service.slug}`}>
+                  Lihat detail
+                  <Icon name="arrow-right" size={15} />
+                </a>
+              </p>
+            </article>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="filter-empty" data-filter-empty hidden>
+      Tidak ada layanan yang cocok dengan filter ini.
+      <a href="/layanan">Tampilkan semua layanan</a>.
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .service-grid {
+    display: grid;
+    gap: var(--space-4);
+    padding-block: var(--space-8);
+  }
+
+  .service-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: var(--space-6);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    transition: border-color var(--dur) var(--ease);
+  }
+
+  .service-card:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  .service-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .service-card__meta a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+
+  .service-card__meta a:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+  }
+
+  .service-card__meta a::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 0.85em;
+    margin-inline-end: var(--space-3);
+    background-color: var(--color-border-strong);
+    vertical-align: -0.1em;
+  }
+
+  .service-card h2 {
+    margin-top: var(--space-3);
+    font-size: var(--text-h3);
+  }
+
+  .service-card h2 a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .service-card h2 a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .service-card__summary {
+    flex: 1;
+    max-width: 54ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .service-card__audience {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .service-card__cta {
+    margin-top: var(--space-4);
+  }
+
+  .filter-empty {
+    padding-block: var(--space-12);
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  @media (min-width: 720px) {
+    .service-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1080px) {
+    .service-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+</style>

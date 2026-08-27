@@ -38,9 +38,11 @@ const kindLabel: Record<string, string> = {
       </a>
     </div>
 
-    {applications.length === 0 && (
-      <EmptySection message="Belum ada aplikasi atau website yang terdaftar." />
-    )}
+    {
+      applications.length === 0 && (
+        <EmptySection message="Belum ada aplikasi atau website yang terdaftar." />
+      )
+    }
 
     <ul class="apps__list">
       {

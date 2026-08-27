@@ -29,7 +29,11 @@ export const seedAudiences = [
 ];
 
 export const seedFaqCategories = [
-  { slug: 'pendidikan', label: 'Pendidikan', summary: 'Pendaftaran, jenjang, dan kegiatan belajar.' },
+  {
+    slug: 'pendidikan',
+    label: 'Pendidikan',
+    summary: 'Pendaftaran, jenjang, dan kegiatan belajar.',
+  },
   { slug: 'donasi', label: 'Donasi', summary: 'Kanal donasi resmi dan penyalurannya.' },
   { slug: 'dakwah', label: 'Dakwah', summary: 'Kajian, rekaman, dan materi.' },
   { slug: 'umum', label: 'Umum', summary: 'Pertanyaan lintas unit.' },
@@ -323,6 +327,97 @@ export const seedApplications = [
     ownerUnitSlug: 'kajian-sunnah',
     url: null,
     ctaLabel: 'Buka',
+  },
+];
+
+/**
+ * Event.
+ *
+ * Tanggal event adalah salah satu hal yang dilarang dikarang (05-HALLMARK §7),
+ * jadi `startAt`/`endAt` dibiarkan null dan halaman menampilkan status apa adanya.
+ * Struktur tanggalnya sudah siap di database; yang belum ada hanya isinya.
+ */
+export const seedEvents = [
+  {
+    code: `${SEED_CODE_PREFIX}EVENT-KAJIAN-PEKANAN`,
+    slug: 'kajian-pekanan',
+    sortOrder: 1,
+    title: 'Kajian Pekanan',
+    summary: 'Kajian rutin terbuka untuk umum yang diselenggarakan unit dakwah.',
+    organizerUnitSlug: 'kajian-sunnah',
+    format: 'onsite' as const,
+    location: PLACEHOLDER,
+    speakerSummary: PLACEHOLDER,
+    relatedProgramSlug: 'kajian-rutin',
+  },
+  {
+    code: `${SEED_CODE_PREFIX}EVENT-KELAS-PERDANA`,
+    slug: 'kelas-perdana-belajar-islam-dasar',
+    sortOrder: 2,
+    title: 'Kelas Perdana Belajar Islam Dasar',
+    summary: 'Pertemuan pembuka program Belajar Islam Dasar untuk peserta baru.',
+    organizerUnitSlug: 'tsl-learning',
+    format: 'online' as const,
+    location: null,
+    speakerSummary: PLACEHOLDER,
+    relatedProgramSlug: 'belajar-islam-dasar',
+  },
+  {
+    code: `${SEED_CODE_PREFIX}EVENT-SOSIALISASI-PPDB`,
+    slug: 'sosialisasi-ppdb',
+    sortOrder: 3,
+    title: 'Sosialisasi PPDB',
+    summary: 'Penjelasan alur dan persyaratan pendaftaran untuk orang tua calon peserta didik.',
+    organizerUnitSlug: 'ts-lab-school',
+    format: 'hybrid' as const,
+    location: PLACEHOLDER,
+    speakerSummary: null,
+    relatedProgramSlug: 'ts-lab-school-preschool',
+  },
+];
+
+/**
+ * Kontak.
+ *
+ * Nilai kanal (`value`) sengaja null: nomor, email, dan alamat termasuk yang
+ * dilarang dikarang. Yang di-seed hanya STRUKTUR kanalnya, supaya halaman detail
+ * unit bisa dibangun dan diuji, lalu unit pemilik tinggal mengisi nilainya.
+ */
+export const seedContacts = [
+  {
+    ownerUnitSlug: 'ts-lab-school',
+    label: 'Admin PPDB',
+    channel: 'WhatsApp',
+    value: null,
+    note: PLACEHOLDER,
+  },
+  {
+    ownerUnitSlug: 'program-sosial',
+    label: 'Admin Donasi',
+    channel: 'WhatsApp',
+    value: null,
+    note: PLACEHOLDER,
+  },
+  {
+    ownerUnitSlug: 'kajian-sunnah',
+    label: 'Informasi Kajian',
+    channel: 'WhatsApp',
+    value: null,
+    note: PLACEHOLDER,
+  },
+  {
+    ownerUnitSlug: 'tsl-learning',
+    label: 'Bantuan Kelas Daring',
+    channel: 'Email',
+    value: null,
+    note: PLACEHOLDER,
+  },
+  {
+    ownerUnitSlug: 'yts-hub',
+    label: 'Kontak Umum YTS Hub',
+    channel: 'Email',
+    value: null,
+    note: PLACEHOLDER,
   },
 ];
 

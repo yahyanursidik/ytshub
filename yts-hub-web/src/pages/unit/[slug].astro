@@ -1,20 +1,389 @@
 ---
-/** Detail unit. Isi pada Fase 3. */
+/**
+ * Detail Unit — 02-INFORMATION-ARCHITECTURE.md §5:
+ * Tentang → Program → Layanan → Event → FAQ → Website/Aplikasi → Kontak.
+ *
+ * Halaman ini padat tautan karena memang perannya sebagai hub: pengguna sampai di
+ * sini untuk pindah ke sesuatu yang lebih spesifik. Jadi bentuknya daftar-daftar
+ * pendek, bukan prosa panjang.
+ */
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { getUnitSlugs } from '@/server/content/public-queries';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import DetailSection from '@/components/ui/DetailSection.astro';
+import StatusDot from '@/components/ui/StatusDot.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { getUnitDetail, listUnits } from '@/server/content/directory-queries';
 
 export async function getStaticPaths() {
-  const units = await getUnitSlugs();
-  return units.map((unit) => ({
-    params: { slug: unit.slug },
-    props: { title: unit.title, summary: unit.summary },
-  }));
+  const units = await listUnits();
+  return units.map((unit) => ({ params: { slug: unit.slug } }));
 }
 
-const { title, summary } = Astro.props;
+const { slug } = Astro.params;
+const detail = await getUnitDetail(slug!);
+
+if (!detail) {
+  return Astro.rewrite('/404');
+}
+
+const { unit, services, programs, events, faqs, applications, contacts } = detail;
+
+const kindLabel: Record<string, string> = {
+  pendidikan: 'Pendidikan',
+  dakwah: 'Dakwah',
+  sosial: 'Sosial',
+  digital: 'Digital',
+  operasional: 'Operasional',
+};
+
+const formatLabel: Record<string, string> = {
+  onsite: 'Tatap muka',
+  online: 'Daring',
+  hybrid: 'Hybrid',
+};
+
+const appKindLabel: Record<string, string> = {
+  aplikasi: 'Aplikasi',
+  website: 'Website',
+  portal: 'Portal',
+};
 ---
 
-<BaseLayout title={title} description={summary} noindex>
-  <PhasePlaceholder title={title} phase="Fase 3 — Public Directory Routes" describes={summary} />
+<BaseLayout
+  title={unit.seoTitle ?? unit.title}
+  description={unit.seoDescription ?? unit.summary}
+  canonicalPath={`/unit/${unit.slug}`}
+>
+  <PageHeader
+    eyebrow={kindLabel[unit.kind] ?? unit.kind}
+    title={unit.title}
+    lead={unit.summary}
+    crumbs={[
+      { label: 'Beranda', href: '/' },
+      { label: 'Unit', href: '/unit' },
+      { label: unit.title },
+    ]}
+  />
+
+  <div class="container unit">
+    <div class="unit__main">
+      <DetailSection title="Tentang" content={unit.about} />
+
+      <section class="block" aria-labelledby="unit-layanan">
+        <h2 id="unit-layanan">Layanan</h2>
+        {
+          services.length > 0 ? (
+            <ul class="rows">
+              {services.map((service) => (
+                <li>
+                  <a href={`/layanan/${service.slug}`}>
+                    <span class="rows__name">{service.title}</span>
+                    <span class="rows__note">{service.summary}</span>
+                    <span class="rows__tag">{service.category}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="block__empty">Unit ini belum memiliki layanan yang dipublikasikan.</p>
+          )
+        }
+      </section>
+
+      <section class="block" aria-labelledby="unit-program">
+        <h2 id="unit-program">Program</h2>
+        {
+          programs.length > 0 ? (
+            <ul class="rows">
+              {programs.map((program) => (
+                <li>
+                  <a href={`/program/${program.slug}`}>
+                    <span class="rows__name">{program.title}</span>
+                    <span class="rows__note">{program.summary}</span>
+                    <span class="rows__tag">
+                      <StatusDot status={program.programStatus} />
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="block__empty">Unit ini belum memiliki program yang dipublikasikan.</p>
+          )
+        }
+      </section>
+
+      {
+        events.length > 0 && (
+          <section class="block" aria-labelledby="unit-event">
+            <h2 id="unit-event">Event</h2>
+            <ul class="rows">
+              {events.map((event) => (
+                <li>
+                  <a href={`/event/${event.slug}`}>
+                    <span class="rows__name">{event.title}</span>
+                    <span class="rows__tag">{formatLabel[event.format] ?? event.format}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+
+      {
+        faqs.length > 0 && (
+          <section class="block" aria-labelledby="unit-faq">
+            <h2 id="unit-faq">Pertanyaan yang sering diajukan</h2>
+            <ul class="rows rows--compact">
+              {faqs.map((faq) => (
+                <li>
+                  <a href={`/faq/${faq.slug}`}>
+                    <span class="rows__name">{faq.question}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+    </div>
+
+    <aside class="unit__aside">
+      <section class="panel" aria-labelledby="unit-sistem">
+        <h2 id="unit-sistem">Aplikasi & website</h2>
+        {
+          applications.length > 0 ? (
+            <ul class="panel__list">
+              {applications.map((app) => (
+                <li>
+                  {app.url ? (
+                    <a href={app.url} target="_blank" rel="noopener">
+                      {app.name}
+                      <Icon name="external" size={14} />
+                      <span class="visually-hidden">(membuka situs lain di tab baru)</span>
+                    </a>
+                  ) : (
+                    <span class="panel__pending">
+                      {app.name}
+                      <span>tautan resmi belum tersedia</span>
+                    </span>
+                  )}
+                  <span class="panel__kind">{appKindLabel[app.kind] ?? app.kind}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="panel__empty">Belum ada sistem terdaftar untuk unit ini.</p>
+          )
+        }
+      </section>
+
+      <section class="panel" aria-labelledby="unit-kontak">
+        <h2 id="unit-kontak">Kontak</h2>
+        {
+          contacts.length > 0 ? (
+            <ul class="panel__list">
+              {contacts.map((contact) => (
+                <li>
+                  <span class="panel__contact">
+                    {contact.label}
+                    <span class="panel__channel">{contact.channel}</span>
+                  </span>
+                  <span class="panel__value">{contact.value ?? 'Menunggu data resmi unit'}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="panel__empty">Kontak unit ini belum dicantumkan.</p>
+          )
+        }
+        <p class="panel__more">
+          <a class="link-action" href="/hubungi-kami">
+            Semua kanal resmi YTS
+            <Icon name="arrow-right" size={15} />
+          </a>
+        </p>
+      </section>
+    </aside>
+  </div>
 </BaseLayout>
+
+<style>
+  .unit {
+    display: grid;
+    gap: var(--space-12);
+    padding-block: var(--space-12) var(--space-8);
+  }
+
+  .block {
+    margin-top: var(--space-12);
+  }
+
+  .block h2 {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .block__empty {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    font-style: italic;
+  }
+
+  .rows {
+    margin-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .rows li {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .rows a {
+    display: grid;
+    gap: var(--space-1);
+    padding-block: var(--space-4);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .rows--compact a {
+    padding-block: var(--space-3);
+  }
+
+  .rows a:hover .rows__name {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .rows__name {
+    font-weight: 600;
+    line-height: var(--leading-tight);
+  }
+
+  .rows__note {
+    max-width: 62ch;
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    line-height: var(--leading-tight);
+  }
+
+  .rows__tag {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  /* ---- Panel samping ---- */
+  .unit__aside {
+    display: grid;
+    gap: var(--space-8);
+    align-content: start;
+  }
+
+  .panel {
+    padding: var(--space-6);
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-panel);
+  }
+
+  .panel h2 {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .panel__list {
+    display: grid;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  .panel__list a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    color: var(--color-text-link);
+    text-decoration: none;
+  }
+
+  .panel__list a:hover {
+    text-decoration: underline;
+  }
+
+  .panel__kind,
+  .panel__channel,
+  .panel__value {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .panel__contact {
+    font-weight: 600;
+  }
+
+  .panel__pending {
+    display: block;
+    font-weight: 600;
+  }
+
+  /* Catatan di bawah nama sistem harus jadi baris sendiri, bukan menempel. */
+  .panel__pending span,
+  .panel__value {
+    display: block;
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .panel__empty {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    font-style: italic;
+  }
+
+  .panel__more {
+    margin-top: var(--space-6);
+  }
+
+  @media (min-width: 960px) {
+    .unit {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: var(--space-16);
+    }
+
+    .rows a {
+      grid-template-columns: minmax(0, 1fr) 10rem;
+      grid-template-areas:
+        'name tag'
+        'note tag';
+      align-items: baseline;
+      gap: var(--space-1) var(--space-6);
+    }
+
+    .rows__name {
+      grid-area: name;
+    }
+
+    .rows__note {
+      grid-area: note;
+    }
+
+    .rows__tag {
+      grid-area: tag;
+      text-align: end;
+    }
+  }
+</style>

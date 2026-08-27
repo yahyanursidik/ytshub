@@ -1,0 +1,68 @@
+---
+/**
+ * Breadcrumb — 02-INFORMATION-ARCHITECTURE.md §6.
+ * Dipakai pada halaman level ≥2. Tidak pernah di hero landing page.
+ *
+ * Item terakhir adalah halaman saat ini: bukan link, dan ditandai aria-current.
+ */
+interface Crumb {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  items: Crumb[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav class="crumbs" aria-label="Breadcrumb">
+  <ol>
+    {
+      items.map((item, index) => {
+        const isLast = index === items.length - 1;
+        return (
+          <li>
+            {item.href && !isLast ? (
+              <a href={item.href}>{item.label}</a>
+            ) : (
+              <span aria-current={isLast ? 'page' : undefined}>{item.label}</span>
+            )}
+          </li>
+        );
+      })
+    }
+  </ol>
+</nav>
+
+<style>
+  .crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .crumbs li + li::before {
+    content: '/';
+    margin-inline-end: var(--space-2);
+    color: var(--color-border-strong);
+  }
+
+  .crumbs a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+
+  .crumbs a:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+  }
+
+  .crumbs [aria-current='page'] {
+    color: var(--color-text);
+  }
+</style>

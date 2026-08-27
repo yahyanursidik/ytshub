@@ -1,0 +1,207 @@
+---
+/**
+ * Direktori Aplikasi & Website — 08-INTEGRATION-AND-ROUTING.md §5.
+ *
+ * Halaman ini adalah pintu ke sistem lain. Tugasnya menjelaskan sistem mana
+ * menangani apa SEBELUM pengguna diarahkan keluar, bukan sekadar menumpuk tautan.
+ *
+ * Field internal (technical owner, repository, hosting, integration notes) tidak
+ * pernah sampai ke sini — query publik tidak mengambilnya sama sekali.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import FilterBar, { type FilterGroup } from '@/components/ui/FilterBar.astro';
+import EmptySection from '@/components/ui/EmptySection.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { listApplications } from '@/server/content/directory-queries';
+
+const apps = await listApplications();
+
+const kindLabel: Record<string, string> = {
+  aplikasi: 'Aplikasi',
+  website: 'Website',
+  portal: 'Portal',
+};
+
+const kinds = [...new Set(apps.map((app) => app.kind))];
+const groups: FilterGroup[] = [
+  {
+    param: 'jenis',
+    legend: 'Jenis',
+    options: kinds.map((kind) => ({
+      label: kindLabel[kind] ?? kind,
+      value: kind,
+      count: apps.filter((app) => app.kind === kind).length,
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title="Aplikasi & Website"
+  description="Direktori aplikasi dan website resmi di ekosistem digital Yayasan Tarbiyah Sunnah."
+  canonicalPath="/aplikasi"
+>
+  <PageHeader
+    eyebrow="Direktori"
+    title="Aplikasi & Website"
+    lead="YTS Hub tidak menggantikan sistem yang sudah berjalan. Di sini Anda melihat sistem mana menangani apa, lalu membukanya dengan konteks yang jelas."
+    crumbs={[{ label: 'Beranda', href: '/' }, { label: 'Aplikasi & Website' }]}
+  />
+
+  <div class="container">
+    <FilterBar groups={groups} basePath="/aplikasi" noun="sistem" />
+
+    {
+      apps.length === 0 && (
+        <EmptySection message="Belum ada aplikasi atau website yang terdaftar." />
+      )
+    }
+
+    <ul class="app-list" data-filter-list>
+      {
+        apps.map((app) => (
+          <li data-filter-item data-jenis={app.kind}>
+            <article>
+              <div class="app-list__main">
+                <p class="app-list__kind">
+                  {kindLabel[app.kind] ?? app.kind}
+                  <a href={`/unit/${app.unitSlug}`}>{app.unitName}</a>
+                </p>
+                <h2>{app.name}</h2>
+                <p class="app-list__summary">{app.summary}</p>
+              </div>
+
+              {app.url ? (
+                <a
+                  class="btn btn--secondary app-list__cta"
+                  href={app.url}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  {app.ctaLabel}
+                  <Icon name="external" size={16} />
+                  <span class="visually-hidden">
+                    {app.name} — membuka situs di luar YTS Hub, di tab baru
+                  </span>
+                </a>
+              ) : (
+                <p class="app-list__pending">
+                  Tautan resmi belum tersedia.
+                  <span>Menunggu konfirmasi unit pemilik.</span>
+                </p>
+              )}
+            </article>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="filter-empty" data-filter-empty hidden>
+      Tidak ada sistem yang cocok dengan filter ini.
+      <a href="/aplikasi">Tampilkan semua</a>.
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .app-list {
+    padding-block: var(--space-4) var(--space-8);
+    border-top: 1px solid var(--color-border-strong);
+    margin-top: var(--space-4);
+  }
+
+  .app-list li {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .app-list article {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-block: var(--space-6);
+  }
+
+  .app-list__kind {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .app-list__kind a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+
+  .app-list__kind a:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+  }
+
+  .app-list__kind a::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 0.85em;
+    margin-inline-end: var(--space-3);
+    background-color: var(--color-border-strong);
+    vertical-align: -0.1em;
+  }
+
+  .app-list h2 {
+    margin-top: var(--space-1);
+    font-size: var(--text-h3);
+  }
+
+  .app-list__summary {
+    max-width: 58ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .app-list__cta {
+    flex: none;
+    min-height: 44px;
+    padding-inline: var(--space-4);
+    font-size: var(--text-small);
+  }
+
+  .app-list__pending {
+    flex: none;
+    max-width: 18ch;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .app-list__pending span {
+    display: block;
+    font-style: italic;
+  }
+
+  .filter-empty {
+    padding-block: var(--space-12);
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  @media (min-width: 720px) {
+    .app-list article {
+      flex-wrap: nowrap;
+    }
+
+    .app-list__main {
+      flex: 1;
+    }
+
+    .app-list__pending {
+      text-align: end;
+    }
+  }
+</style>

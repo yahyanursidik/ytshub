@@ -23,6 +23,17 @@ import {
   getPublicApplications,
 } from '@/server/content/public-queries';
 
+/** Jumlah baris seed. Satu tempat, supaya menambah entity tidak memaksa
+ *  memperbarui angka di beberapa test sekaligus. */
+const EXPECTED_SEED = {
+  units: 5,
+  services: 5,
+  programs: 3,
+  faqs: 4,
+  applications: 3,
+  events: 3,
+};
+
 const testUrl = process.env.DATABASE_URL_TEST;
 const describeDb = testUrl ? describe : describe.skip;
 
@@ -43,24 +54,12 @@ describeDb('core registry (PostgreSQL sungguhan)', () => {
   });
 
   it('memuat seluruh entity seed', async () => {
-    expect(await seedSummary(db)).toEqual({
-      units: 5,
-      services: 5,
-      programs: 3,
-      faqs: 4,
-      applications: 3,
-    });
+    expect(await seedSummary(db)).toEqual(EXPECTED_SEED);
   });
 
   it('seed idempoten — dijalankan dua kali tidak menggandakan baris', async () => {
     await runSeed(db);
-    expect(await seedSummary(db)).toEqual({
-      units: 5,
-      services: 5,
-      programs: 3,
-      faqs: 4,
-      applications: 3,
-    });
+    expect(await seedSummary(db)).toEqual(EXPECTED_SEED);
   });
 
   it('menolak layanan tanpa owner unit (FK wajib)', async () => {

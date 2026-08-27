@@ -36,14 +36,16 @@ const items = faqs.map((faq) => ({
     </div>
 
     <div class="faq__body">
-      {items.length === 0 ? (
-        <EmptySection
-          message="Belum ada FAQ yang ditandai populer."
-          hint="Tandai FAQ sebagai populer di admin agar tampil di sini."
-        />
-      ) : (
-        <FaqAccordion items={items} />
-      )}
+      {
+        items.length === 0 ? (
+          <EmptySection
+            message="Belum ada FAQ yang ditandai populer."
+            hint="Tandai FAQ sebagai populer di admin agar tampil di sini."
+          />
+        ) : (
+          <FaqAccordion items={items} />
+        )
+      }
     </div>
   </div>
 </section>

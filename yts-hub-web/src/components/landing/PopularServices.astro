@@ -33,12 +33,14 @@ const opensExternally = (service: PublicService) => service.isExternal && Boolea
       </a>
     </div>
 
-    {services.length === 0 && (
-      <EmptySection
-        message="Belum ada layanan yang ditandai populer."
-        hint="Tandai layanan sebagai populer di admin agar tampil di sini."
-      />
-    )}
+    {
+      services.length === 0 && (
+        <EmptySection
+          message="Belum ada layanan yang ditandai populer."
+          hint="Tandai layanan sebagai populer di admin agar tampil di sini."
+        />
+      )
+    }
 
     <ul class="services">
       {

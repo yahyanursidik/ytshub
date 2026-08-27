@@ -1,0 +1,62 @@
+---
+/**
+ * Kepala halaman direktori dan detail.
+ * Menampung breadcrumb, eyebrow, judul, dan ringkasan dalam satu ritme
+ * supaya tiap halaman tidak menemukan spacing-nya sendiri-sendiri.
+ */
+import Breadcrumb from '@/components/ui/Breadcrumb.astro';
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  lead?: string;
+  crumbs?: { label: string; href?: string }[];
+  /** Meta ringkas di bawah judul, mis. unit pemilik. */
+  meta?: string;
+}
+
+const { eyebrow, title, lead, crumbs, meta } = Astro.props;
+---
+
+<header class="page-header">
+  <div class="container page-header__inner">
+    {crumbs && crumbs.length > 0 && <Breadcrumb items={crumbs} />}
+    {eyebrow && <span class="eyebrow">{eyebrow}</span>}
+    <h1>{title}</h1>
+    {meta && <p class="page-header__meta">{meta}</p>}
+    {lead && <p class="page-header__lead">{lead}</p>}
+    <slot />
+  </div>
+</header>
+
+<style>
+  .page-header {
+    padding-block: var(--space-8) var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .page-header__inner > :global(.crumbs) {
+    margin-bottom: var(--space-6);
+  }
+
+  .page-header h1 {
+    max-width: 22ch;
+  }
+
+  .page-header .eyebrow {
+    margin-bottom: var(--space-3);
+  }
+
+  .page-header__meta {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .page-header__lead {
+    max-width: 60ch;
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-body-l);
+  }
+</style>

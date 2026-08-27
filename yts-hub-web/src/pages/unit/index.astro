@@ -1,0 +1,156 @@
+---
+/**
+ * Direktori Unit — 02-INFORMATION-ARCHITECTURE.md §5.
+ * Bentuk: daftar padat. Isinya daftar unit dengan ringkasan pendek, dan jumlah
+ * layanan/program membantu pengguna memilih pintu masuk yang tepat.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import FilterBar, { type FilterGroup } from '@/components/ui/FilterBar.astro';
+import EmptySection from '@/components/ui/EmptySection.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { listUnits } from '@/server/content/directory-queries';
+
+const units = await listUnits();
+
+const kindLabel: Record<string, string> = {
+  pendidikan: 'Pendidikan',
+  dakwah: 'Dakwah',
+  sosial: 'Sosial',
+  digital: 'Digital',
+  operasional: 'Operasional',
+};
+
+const kinds = [...new Set(units.map((unit) => unit.kind))];
+const groups: FilterGroup[] = [
+  {
+    param: 'bidang',
+    legend: 'Bidang',
+    options: kinds.map((kind) => ({
+      label: kindLabel[kind] ?? kind,
+      value: kind,
+      count: units.filter((unit) => unit.kind === kind).length,
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title="Unit"
+  description="Direktori unit dan bidang di Yayasan Tarbiyah Sunnah beserta layanan dan program yang dinaunginya."
+  canonicalPath="/unit"
+>
+  <PageHeader
+    eyebrow="Direktori"
+    title="Unit YTS"
+    lead="Setiap layanan dan program dimiliki oleh unit tertentu. Telusuri lewat unitnya bila Anda belum tahu harus mulai dari mana."
+    crumbs={[{ label: 'Beranda', href: '/' }, { label: 'Unit' }]}
+  />
+
+  <div class="container">
+    <FilterBar groups={groups} basePath="/unit" noun="unit" />
+
+    {units.length === 0 && <EmptySection message="Belum ada unit yang dipublikasikan." />}
+
+    <ul class="unit-list" data-filter-list>
+      {
+        units.map((unit) => (
+          <li data-filter-item data-bidang={unit.kind}>
+            <a href={`/unit/${unit.slug}`}>
+              <span class="unit-list__head">
+                <span class="unit-list__name">{unit.title}</span>
+                <span class="unit-list__kind">{kindLabel[unit.kind] ?? unit.kind}</span>
+              </span>
+              <span class="unit-list__summary">{unit.summary}</span>
+              <span class="unit-list__meta">
+                {unit.serviceCount} layanan &middot; {unit.programCount} program
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="filter-empty" data-filter-empty hidden>
+      Tidak ada unit yang cocok dengan filter ini. <a href="/unit">Tampilkan semua unit</a>.
+    </p>
+
+    <p class="unit-list__after">
+      <a class="link-action" href="/layanan">
+        Lebih suka mulai dari layanan?
+        <Icon name="arrow-right" size={15} />
+      </a>
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .unit-list {
+    border-top: 1px solid var(--color-border-strong);
+  }
+
+  .unit-list li {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .unit-list a {
+    display: block;
+    padding-block: var(--space-6);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: padding-inline-start var(--dur) var(--ease);
+  }
+
+  .unit-list a:hover {
+    padding-inline-start: var(--space-2);
+    color: var(--color-text);
+  }
+
+  .unit-list__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .unit-list__name {
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    font-weight: 600;
+    letter-spacing: var(--tracking-heading);
+  }
+
+  .unit-list__kind {
+    flex: none;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .unit-list__summary {
+    display: block;
+    max-width: 62ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .unit-list__meta {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .filter-empty {
+    padding-block: var(--space-12);
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  .unit-list__after {
+    padding-block: var(--space-8) var(--space-4);
+  }
+</style>

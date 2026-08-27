@@ -1,0 +1,120 @@
+---
+/**
+ * Blok related content — 02-INFORMATION-ARCHITECTURE.md §7.
+ * Setiap halaman detail wajib punya minimal 2 blok agar tidak ada halaman buntu.
+ *
+ * Bentuknya daftar, bukan card: isinya memang daftar tautan pendek
+ * (05-HALLMARK-ANTI-SLOP.md §6).
+ */
+import Icon from '@/components/ui/Icon.astro';
+
+export interface RelatedItem {
+  href: string;
+  label: string;
+  note?: string | null;
+  external?: boolean;
+}
+
+interface Props {
+  title: string;
+  items: RelatedItem[];
+  /** Tautan "lihat semua" opsional. */
+  moreHref?: string;
+  moreLabel?: string;
+}
+
+const { title, items, moreHref, moreLabel } = Astro.props;
+---
+
+{
+  items.length > 0 && (
+    <section
+      class="related"
+      aria-labelledby={`related-${title.replace(/\s+/g, '-').toLowerCase()}`}
+    >
+      <h2 id={`related-${title.replace(/\s+/g, '-').toLowerCase()}`}>{title}</h2>
+      <ul>
+        {items.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              target={item.external ? '_blank' : undefined}
+              rel={item.external ? 'noopener' : undefined}
+            >
+              <span class="related__label">
+                {item.label}
+                {item.external && (
+                  <>
+                    <Icon name="external" size={14} />
+                    <span class="visually-hidden">(membuka situs lain di tab baru)</span>
+                  </>
+                )}
+              </span>
+              {item.note && <span class="related__note">{item.note}</span>}
+            </a>
+          </li>
+        ))}
+      </ul>
+      {moreHref && (
+        <p class="related__more">
+          <a class="link-action" href={moreHref}>
+            {moreLabel ?? 'Lihat semua'}
+            <Icon name="arrow-right" size={15} />
+          </a>
+        </p>
+      )}
+    </section>
+  )
+}
+
+<style>
+  .related h2 {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .related ul {
+    margin-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .related li {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .related a {
+    display: block;
+    padding-block: var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .related a:hover .related__label {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .related__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 500;
+    line-height: var(--leading-tight);
+  }
+
+  .related__note {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    line-height: var(--leading-tight);
+  }
+
+  .related__more {
+    margin-top: var(--space-3);
+  }
+</style>

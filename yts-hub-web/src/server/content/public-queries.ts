@@ -52,25 +52,27 @@ export type PublicUnit = Awaited<ReturnType<typeof getFeaturedUnits>>[number];
 /* --------------------------------------------------------------- services */
 
 export async function getPopularServices(limit = 5) {
-  return getDb()
-    .select({
-      id: services.id,
-      slug: services.slug,
-      code: services.code,
-      title: services.title,
-      summary: services.summary,
-      category: services.category,
-      ctaLabel: services.ctaLabel,
-      ctaUrl: services.ctaUrl,
-      isExternal: services.isExternal,
-      updatedAt: services.updatedAt,
-    })
-    .from(services)
-    .where(and(publicOnly(services), eq(services.isPopular, true)))
-    // Urutan ditentukan pengelola lewat sortOrder; judul hanya penyeimbang
-    // agar hasilnya stabil, bukan penentu "paling sering dicari".
-    .orderBy(asc(services.sortOrder), asc(services.title))
-    .limit(limit);
+  return (
+    getDb()
+      .select({
+        id: services.id,
+        slug: services.slug,
+        code: services.code,
+        title: services.title,
+        summary: services.summary,
+        category: services.category,
+        ctaLabel: services.ctaLabel,
+        ctaUrl: services.ctaUrl,
+        isExternal: services.isExternal,
+        updatedAt: services.updatedAt,
+      })
+      .from(services)
+      .where(and(publicOnly(services), eq(services.isPopular, true)))
+      // Urutan ditentukan pengelola lewat sortOrder; judul hanya penyeimbang
+      // agar hasilnya stabil, bukan penentu "paling sering dicari".
+      .orderBy(asc(services.sortOrder), asc(services.title))
+      .limit(limit)
+  );
 }
 
 export type PublicService = Awaited<ReturnType<typeof getPopularServices>>[number];
@@ -85,27 +87,29 @@ export async function getServiceSlugs() {
 /* --------------------------------------------------------------- programs */
 
 export async function getFeaturedPrograms(limit = 3) {
-  return getDb()
-    .select({
-      id: programs.id,
-      slug: programs.slug,
-      code: programs.code,
-      title: programs.title,
-      summary: programs.summary,
-      category: programs.category,
-      programStatus: programs.programStatus,
-      scheduleSummary: programs.scheduleSummary,
-      updatedAt: programs.updatedAt,
-    })
-    .from(programs)
-    .where(and(publicOnly(programs), eq(programs.isFeatured, true)))
-    // Yang sedang berjalan lebih dulu, lalu yang akan datang, baru urutan pengelola.
-    .orderBy(
-      sql`case ${programs.programStatus} when 'berjalan' then 0 when 'akan-datang' then 1 else 2 end`,
-      asc(programs.sortOrder),
-      asc(programs.title),
-    )
-    .limit(limit);
+  return (
+    getDb()
+      .select({
+        id: programs.id,
+        slug: programs.slug,
+        code: programs.code,
+        title: programs.title,
+        summary: programs.summary,
+        category: programs.category,
+        programStatus: programs.programStatus,
+        scheduleSummary: programs.scheduleSummary,
+        updatedAt: programs.updatedAt,
+      })
+      .from(programs)
+      .where(and(publicOnly(programs), eq(programs.isFeatured, true)))
+      // Yang sedang berjalan lebih dulu, lalu yang akan datang, baru urutan pengelola.
+      .orderBy(
+        sql`case ${programs.programStatus} when 'berjalan' then 0 when 'akan-datang' then 1 else 2 end`,
+        asc(programs.sortOrder),
+        asc(programs.title),
+      )
+      .limit(limit)
+  );
 }
 
 export type PublicProgram = Awaited<ReturnType<typeof getFeaturedPrograms>>[number];
@@ -120,21 +124,23 @@ export async function getProgramSlugs() {
 /* ------------------------------------------------------------------- faqs */
 
 export async function getPopularFaqs(limit = 4) {
-  return getDb()
-    .select({
-      id: faqs.id,
-      slug: faqs.slug,
-      code: faqs.code,
-      question: faqs.question,
-      answer: faqs.answer,
-      summary: faqs.summary,
-      updatedAt: faqs.updatedAt,
-    })
-    .from(faqs)
-    .where(and(publicOnly(faqs), eq(faqs.isPopular, true)))
-    // Prioritas: urutan pengelola, lalu skor kebermanfaatan (07-SEARCH §4 butir 4).
-    .orderBy(asc(faqs.sortOrder), desc(faqs.helpfulYes), asc(faqs.question))
-    .limit(limit);
+  return (
+    getDb()
+      .select({
+        id: faqs.id,
+        slug: faqs.slug,
+        code: faqs.code,
+        question: faqs.question,
+        answer: faqs.answer,
+        summary: faqs.summary,
+        updatedAt: faqs.updatedAt,
+      })
+      .from(faqs)
+      .where(and(publicOnly(faqs), eq(faqs.isPopular, true)))
+      // Prioritas: urutan pengelola, lalu skor kebermanfaatan (07-SEARCH §4 butir 4).
+      .orderBy(asc(faqs.sortOrder), desc(faqs.helpfulYes), asc(faqs.question))
+      .limit(limit)
+  );
 }
 
 export type PublicFaq = Awaited<ReturnType<typeof getPopularFaqs>>[number];
