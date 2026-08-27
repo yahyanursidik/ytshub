@@ -36,6 +36,13 @@
       "when": 1787843350142,
       "tag": "0004_warm_greymalkin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787848035021,
+      "tag": "0005_bizarre_mister_fear",
+      "breakpoints": true
     }
   ]
 }

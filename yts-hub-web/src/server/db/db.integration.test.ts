@@ -22,15 +22,23 @@ import {
   getPopularServices,
   getPublicApplications,
 } from '@/server/content/public-queries';
+import { officialApplications, officialUnits } from '@/server/db/official-data';
 
-/** Jumlah baris seed. Satu tempat, supaya menambah entity tidak memaksa
- *  memperbarui angka di beberapa test sekaligus. */
+/**
+ * Jumlah baris yang dimuat `runSeed`. Satu tempat, supaya menambah entity tidak
+ * memaksa memperbarui angka di beberapa test sekaligus.
+ *
+ * `units` dan `applications` dihitung dari DATA RESMI (`YTS-`); sisanya dari
+ * seed pengembangan (`DEV-`). Angkanya diturunkan dari berkas datanya, bukan
+ * ditulis ulang sebagai konstanta — menambah satu unit resmi tidak boleh
+ * membuat test gagal karena angka yang lupa disesuaikan.
+ */
 const EXPECTED_SEED = {
-  units: 5,
+  units: officialUnits.length,
   services: 5,
   programs: 3,
   faqs: 4,
-  applications: 3,
+  applications: officialApplications.length,
   events: 3,
 };
 

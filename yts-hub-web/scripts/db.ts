@@ -56,7 +56,10 @@ async function main() {
       const db = createDatabase();
       await runSeed(db);
       console.table(await seedSummary(db));
-      console.log('✓ Seed pengembangan dimuat (bertanda DEV-, bukan data resmi YTS).');
+      console.log(
+        '✓ Dimuat: unit & registry sistem sebagai DATA RESMI (YTS-), sisanya sebagai\n' +
+          '  data pengembangan (DEV-). db:seed:clear hanya membuang yang DEV-.',
+      );
       break;
     }
     case 'seed:clear': {

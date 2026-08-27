@@ -1,0 +1,121 @@
+---
+/**
+ * Lambang Yayasan Tarbiyah Sunnah.
+ *
+ * ## Catatan penting soal berkas ini
+ *
+ * Bentuk lambangnya DIGAMBAR ULANG sebagai SVG dari berkas gambar yang diberikan
+ * pengurus, bukan disalin dari berkas vektor aslinya. Geometrinya sederhana —
+ * tiga bidang segitiga — sehingga hasilnya sangat mendekati, tetapi ini tetap
+ * hasil penggambaran ulang. Bila berkas vektor resmi (.svg atau .ai) tersedia,
+ * ganti isi <svg> di bawah dengan path aslinya; ukuran dan warnanya sudah
+ * memakai token, jadi tidak ada yang lain perlu diubah.
+ *
+ * Warnanya diambil dari lambang, BUKAN dari token tema. Ini identitas yayasan:
+ * ia harus tetap sama meski palet situs suatu saat disesuaikan. Hijau lambang
+ * kebetulan sangat dekat dengan --c-brand (#405a43) dan itu memang alasan warna
+ * merek situs dipilih sejak 04-DESIGN-SYSTEM.
+ *
+ * Tulisan "Tarbiyah Sunnah" TIDAK ikut digambar sebagai path. Menjiplak
+ * huruf demi huruf dari gambar raster menghasilkan bentuk yang meleset dan tidak
+ * bisa diperbaiki; teks sungguhan memakai Source Serif 4 yang sudah di-host
+ * sendiri, tetap tajam di segala ukuran, dan terbaca pembaca layar.
+ */
+interface Props {
+  /**
+   * `mark`  — hanya lambang, untuk ruang sempit
+   * `full`  — lambang + nama yayasan, bertumpuk
+   * `inline` — lambang + nama sebaris, untuk bilah header
+   */
+  variant?: 'mark' | 'full' | 'inline';
+  /** Tinggi lambang dalam piksel. */
+  size?: number;
+  /** Teks alternatif. Kosongkan bila lambang hanya hiasan di sebelah teks lain. */
+  title?: string;
+  class?: string;
+}
+
+const { variant = 'inline', size = 32, title, class: className } = Astro.props;
+
+const BRAND_GREEN = '#4a6741';
+const BRAND_ORANGE = '#d9822b';
+const BRAND_YELLOW = '#eeb111';
+
+/**
+ * Tiga bidang yang menyempit ke kanan, makin ke atas makin tipis, DIPISAHKAN
+ * celah — bukan saling menumpuk. Celah itu bagian dari bentuknya: tanpa celah,
+ * ketiganya terbaca sebagai satu bidang berlapis dan lambangnya berubah arti.
+ *
+ * Koordinat mengikuti proporsi lambang asli pada kanvas 1060 x 960.
+ */
+const MARK_ASPECT = 1060 / 960;
+---
+
+<span class:list={['logo', `logo--${variant}`, className]}>
+  <svg
+    class="logo__mark"
+    viewBox="0 0 1060 960"
+    width={Math.round(size * MARK_ASPECT)}
+    height={size}
+    role={title ? 'img' : 'presentation'}
+    aria-label={title}
+    aria-hidden={title ? undefined : 'true'}
+    fill="none"
+  >
+    {title && <title>{title}</title>}
+    <path d="M400 10 L1045 823 L400 285 Z" fill={BRAND_YELLOW} />
+    <path d="M90 153 L1050 890 L90 475 Z" fill={BRAND_ORANGE} />
+    <path d="M10 540 L1060 958 L10 958 Z" fill={BRAND_GREEN} />
+  </svg>
+
+  {
+    variant !== 'mark' && (
+      <span class="logo__word">
+        <span class="logo__word-line">Tarbiyah</span>
+        <span class="logo__word-line">Sunnah</span>
+      </span>
+    )
+  }
+</span>
+
+<style>
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .logo--full {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .logo__mark {
+    flex: none;
+    /* Lambang menyempit ke satu titik; tanpa ini ujung tipisnya bisa hilang
+       saat dirender kecil. */
+    shape-rendering: geometricPrecision;
+  }
+
+  .logo__word {
+    display: flex;
+    flex-direction: column;
+    color: var(--color-brand-strong);
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.02;
+  }
+
+  /* Sebaris: dua kata dirapatkan menjadi satu baris agar muat di bilah header. */
+  .logo--inline .logo__word {
+    flex-direction: row;
+    gap: 0.32ch;
+    font-size: 1.05rem;
+  }
+
+  .logo--full .logo__word {
+    font-size: 1.5rem;
+  }
+</style>

@@ -1,7 +1,14 @@
 ---
 /**
- * Penanda bahwa konten yang tampil berasal dari seed pengembangan, bukan data resmi YTS.
+ * Penanda bahwa SEBAGIAN konten yang tampil masih contoh.
  * 05-HALLMARK-ANTI-SLOP.md §7 — no fake data exposed as real.
+ *
+ * Sejak alamat sistem resmi dimasukkan, isi situs bercampur: unit yayasan dan
+ * registry sistemnya adalah data sungguhan (berkode `YTS-`), sedangkan layanan,
+ * program, FAQ, dan event masih contoh (berkode `DEV-`). Peringatan yang
+ * menyamaratakan keduanya akan membuat pengelola meragukan alamat yang justru
+ * sudah benar — jadi kalimatnya menyebutkan batasnya.
+ *
  * Otomatis hilang pada production build.
  */
 const show = import.meta.env.DEV;
@@ -11,8 +18,9 @@ const show = import.meta.env.DEV;
   show && (
     <div class="dev-notice" role="note">
       <p>
-        <strong>Data contoh.</strong> Isi halaman ini berasal dari seed pengembangan (bertanda{' '}
-        <code>DEV-</code>), bukan informasi resmi Yayasan Tarbiyah Sunnah.
+        <strong>Sebagian data masih contoh.</strong> Unit dan daftar sistem YTS sudah resmi;
+        layanan, program, FAQ, dan event masih berasal dari seed pengembangan (bertanda{' '}
+        <code>DEV-</code>).
       </p>
     </div>
   )

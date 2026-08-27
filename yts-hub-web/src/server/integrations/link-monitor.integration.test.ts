@@ -64,6 +64,19 @@ describeDb('pemantauan tautan', () => {
     responses = {};
     await db.delete(schema.externalLinks);
     await runSeed(db);
+
+    /**
+     * Mengosongkan URL resmi supaya test mengendalikan sendiri daftar yang
+     * diperiksa.
+     *
+     * Seed memuat sembilan alamat sungguhan milik YTS. Membiarkannya berarti
+     * setiap test di berkas ini akan menghubungi sembilan sistem produksi
+     * yayasan — puluhan kali per menjalankan test. Itu bukan hanya lambat dan
+     * membuat hasilnya bergantung pada jaringan; itu juga membebani sistem
+     * orang lain untuk sesuatu yang tidak menguji apa pun tentang mereka.
+     */
+    await db.update(schema.applications).set({ url: null });
+    await db.update(schema.units).set({ websiteUrl: null });
   });
 
   /** Menempelkan URL ke konten terbit agar ada yang bisa diperiksa. */

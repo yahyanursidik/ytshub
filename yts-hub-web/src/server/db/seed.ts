@@ -1,16 +1,29 @@
 /**
- * Mengisi database dengan data pengembangan dari seed-data.ts.
+ * Mengisi database dengan dua lapis data yang sengaja dibedakan:
  *
- * Idempoten: dijalankan berulang kali menghasilkan keadaan yang sama.
- * Hanya menyentuh baris berkode `DEV-` sehingga tidak pernah menimpa data asli
- * yang sudah dimasukkan lewat admin.
+ * 1. DATA RESMI (official-data.ts, berkode `YTS-`) — unit yayasan dan registry
+ *    sistemnya. Nama dan alamatnya diberikan pengurus, jadi ini informasi
+ *    sungguhan. Dimuat dengan upsert dan TIDAK PERNAH dihapus `clearSeed`.
+ * 2. DATA PENGEMBANGAN (seed-data.ts, berkode `DEV-`) — layanan, program, FAQ,
+ *    event, dan kontak yang isinya masih placeholder. Dihapus dan dimuat ulang
+ *    setiap kali, dan bisa dibuang seluruhnya lewat `db:seed:clear`.
+ *
+ * Pembedaan ini yang membuat `db:seed:clear` aman dijalankan saat konten asli
+ * mulai masuk: yang hilang hanya contohnya, bukan registry sistem YTS.
+ *
+ * Keduanya idempoten — dijalankan berulang menghasilkan keadaan yang sama, dan
+ * tidak pernah menimpa baris yang dibuat pengelola lewat admin.
  */
-import { inArray, like } from 'drizzle-orm';
+import { inArray, like, sql } from 'drizzle-orm';
 
 import { schema, type Database } from '@/server/db/client';
 import {
+  OFFICIAL_CODE_PREFIX,
+  officialApplications,
+  officialUnits,
+} from '@/server/db/official-data';
+import {
   SEED_CODE_PREFIX,
-  seedApplications,
   seedAudiences,
   seedContacts,
   seedEvents,
@@ -18,12 +31,12 @@ import {
   seedFaqs,
   seedPrograms,
   seedServices,
-  seedUnits,
 } from '@/server/db/seed-data';
 
 type Db = Database;
 
 const devCode = `${SEED_CODE_PREFIX}%`;
+const officialCode = `${OFFICIAL_CODE_PREFIX}%`;
 const publishedAt = new Date('2026-01-01T00:00:00.000Z');
 
 /** Menghapus seluruh baris seed pengembangan. Tidak menyentuh data non-DEV. */
@@ -64,21 +77,15 @@ export async function clearSeed(db: Db): Promise<void> {
       .where(inArray(schema.servicesToAudiences.serviceId, serviceIds));
   }
 
-  // Contacts tidak punya kolom `code`; dihapus lewat unit pemiliknya yang berkode DEV-.
-  const devUnits = await db
-    .select({ id: schema.units.id })
-    .from(schema.units)
-    .where(like(schema.units.code, devCode));
-  const unitIds = devUnits.map((row) => row.id);
-  if (unitIds.length) {
-    await db.delete(schema.contacts).where(inArray(schema.contacts.ownerUnitId, unitIds));
-  }
-
+  await db.delete(schema.contacts).where(like(schema.contacts.code, devCode));
   await db.delete(schema.faqs).where(like(schema.faqs.code, devCode));
   await db.delete(schema.events).where(like(schema.events.code, devCode));
   await db.delete(schema.programs).where(like(schema.programs.code, devCode));
   await db.delete(schema.services).where(like(schema.services.code, devCode));
   await db.delete(schema.applications).where(like(schema.applications.code, devCode));
+
+  // Unit TIDAK dihapus di sini. Sejak Fase 6 unit adalah data resmi berkode
+  // `YTS-`; `db:seed:clear` hanya membuang contoh, bukan registry yayasan.
   await db.delete(schema.units).where(like(schema.units.code, devCode));
 }
 
@@ -99,11 +106,15 @@ export async function runSeed(db: Db): Promise<void> {
     .from(schema.faqCategories);
   const categoryIdBySlug = new Map(categoryRows.map((row) => [row.slug, row.id]));
 
-  // ---- units ----
-  const unitRows = await db
+  // ---- unit: DATA RESMI ----
+  //
+  // Upsert berdasarkan `code`, bukan hapus-lalu-masukkan. Unit resmi dirujuk
+  // audit log, penugasan peran, dan konten yang dibuat pengelola; menghapusnya
+  // tiap kali seed berjalan akan memutus seluruh rujukan itu.
+  await db
     .insert(schema.units)
     .values(
-      seedUnits.map((unit) => ({
+      officialUnits.map((unit) => ({
         ...unit,
         status: 'published' as const,
         visibility: 'public' as const,
@@ -111,7 +122,30 @@ export async function runSeed(db: Db): Promise<void> {
         reviewedAt: publishedAt,
       })),
     )
-    .returning({ id: schema.units.id, slug: schema.units.slug });
+    .onConflictDoUpdate({
+      target: schema.units.code,
+      set: {
+        slug: sql`excluded.slug`,
+        title: sql`excluded.title`,
+        shortName: sql`excluded.short_name`,
+        kind: sql`excluded.kind`,
+        summary: sql`excluded.summary`,
+        websiteUrl: sql`excluded.website_url`,
+        sortOrder: sql`excluded.sort_order`,
+        // Status dan visibilitas IKUT dipulihkan. `db:seed` menyatakan keadaan
+        // kanonik data resmi; tanpa dua kolom ini, unit yang pernah diarsipkan
+        // atau dijadikan internal tidak akan pernah kembali terbit meski seed
+        // dijalankan ulang — dan perintah yang tidak bisa memulihkan keadaan
+        // yang dinyatakannya bukan perintah yang idempoten.
+        status: sql`excluded.status`,
+        visibility: sql`excluded.visibility`,
+        updatedAt: new Date(),
+      },
+    });
+
+  const unitRows = await db
+    .select({ id: schema.units.id, slug: schema.units.slug })
+    .from(schema.units);
   const unitIdBySlug = new Map(unitRows.map((row) => [row.slug, row.id]));
 
   const requireUnit = (slug: string): string => {
@@ -284,6 +318,7 @@ export async function runSeed(db: Db): Promise<void> {
   // ---- contacts ----
   await db.insert(schema.contacts).values(
     seedContacts.map((contact) => ({
+      code: contact.code,
       ownerUnitId: requireUnit(contact.ownerUnitSlug),
       label: contact.label,
       channel: contact.channel,
@@ -293,31 +328,63 @@ export async function runSeed(db: Db): Promise<void> {
     })),
   );
 
-  // ---- applications & websites ----
-  await db.insert(schema.applications).values(
-    seedApplications.map((app) => ({
-      code: app.code,
-      slug: app.slug,
-      title: app.title,
-      name: app.name,
-      summary: app.summary,
-      kind: app.kind,
-      ownerUnitId: requireUnit(app.ownerUnitSlug),
-      url: app.url,
-      ctaLabel: app.ctaLabel,
-      sortOrder: app.sortOrder,
-      status: 'published' as const,
-      visibility: 'public' as const,
-      publishedAt,
-      reviewedAt: publishedAt,
-    })),
-  );
+  // ---- registry aplikasi & website: DATA RESMI ----
+  //
+  // Upsert, sama seperti unit. `clearSeed` tidak menghapusnya karena berkode
+  // `YTS-`, jadi insert biasa akan gagal pada pemuatan kedua — dan yang gagal
+  // bukan hanya baris itu, melainkan seluruh seed.
+  await db
+    .insert(schema.applications)
+    .values(
+      officialApplications.map((app) => ({
+        code: app.code,
+        slug: app.slug,
+        title: app.title,
+        name: app.name,
+        summary: app.summary,
+        kind: app.kind,
+        ownerUnitId: requireUnit(app.ownerUnitSlug),
+        url: app.url,
+        ctaLabel: app.ctaLabel,
+        sortOrder: app.sortOrder,
+        status: 'published' as const,
+        visibility: 'public' as const,
+        publishedAt,
+        reviewedAt: publishedAt,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: schema.applications.code,
+      set: {
+        slug: sql`excluded.slug`,
+        title: sql`excluded.title`,
+        name: sql`excluded.name`,
+        summary: sql`excluded.summary`,
+        kind: sql`excluded.kind`,
+        ownerUnitId: sql`excluded.owner_unit_id`,
+        url: sql`excluded.url`,
+        ctaLabel: sql`excluded.cta_label`,
+        sortOrder: sql`excluded.sort_order`,
+        status: sql`excluded.status`,
+        visibility: sql`excluded.visibility`,
+        updatedAt: new Date(),
+      },
+    });
 }
 
-/** Ringkasan untuk output CLI dan assertion di test. */
+/**
+ * Ringkasan untuk output CLI dan assertion di test.
+ *
+ * Unit dan registry aplikasi dihitung dengan prefix `YTS-` karena keduanya kini
+ * data resmi; sisanya tetap dihitung dengan `DEV-`. Menghitung semuanya dengan
+ * satu prefix akan melaporkan nol unit dan membuat orang mengira seed gagal.
+ */
 export async function seedSummary(db: Db) {
   const [units, services, programs, faqs, applications, events] = await Promise.all([
-    db.select({ id: schema.units.id }).from(schema.units).where(like(schema.units.code, devCode)),
+    db
+      .select({ id: schema.units.id })
+      .from(schema.units)
+      .where(like(schema.units.code, officialCode)),
     db
       .select({ id: schema.services.id })
       .from(schema.services)
@@ -330,7 +397,7 @@ export async function seedSummary(db: Db) {
     db
       .select({ id: schema.applications.id })
       .from(schema.applications)
-      .where(like(schema.applications.code, devCode)),
+      .where(like(schema.applications.code, officialCode)),
     db
       .select({ id: schema.events.id })
       .from(schema.events)

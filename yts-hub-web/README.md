@@ -114,7 +114,7 @@ src/
 │   ├── admin/          # penanda status, antrean kerja
 │   ├── landing/        # section landing page, satu file per section
 │   ├── search/         # kolom pencarian, baris hasil, feedback FAQ
-│   ├── ui/             # primitive lintas halaman (Icon, placeholder, notice)
+│   ├── ui/             # primitive lintas halaman (Logo, Icon, placeholder, notice)
 │   ├── SiteHeader.astro
 │   └── SiteFooter.astro
 ├── config/navigation.ts  # navigasi & task shortcut (struktur produk, bukan konten)
@@ -140,8 +140,9 @@ src/
 │   │   ├── schema.ts   # core registry (06-CONTENT-MODEL-AND-CMS.md)
 │   │   ├── client.ts   # pemilihan driver Neon vs postgres.js
 │   │   ├── migrate.ts
-│   │   ├── seed.ts     # loader seed, idempoten
-│   │   └── seed-data.ts # DATA PENGEMBANGAN — bukan data resmi YTS
+│   │   ├── seed.ts     # loader, idempoten — memuat data resmi lalu contoh
+│   │   ├── official-data.ts # DATA RESMI YTS (YTS-) — unit & registry sistem
+│   │   └── seed-data.ts # DATA PENGEMBANGAN (DEV-) — bukan data resmi YTS
 │   ├── content/
 │   │   ├── public-queries.ts     # satu-satunya jalan konten publik keluar
 │   │   ├── directory-queries.ts  # listing & detail (Fase 3-4)
@@ -227,6 +228,32 @@ field internal registry aplikasi (technical owner, repository, hosting, integrat
 tidak pernah ikut terkirim karena memang tidak pernah di-`select` — bukan karena
 komponen kebetulan tidak memakainya. Ada test yang mengisi field itu dengan penanda
 lalu memastikan penanda tersebut tidak muncul di hasil publik.
+
+**Isi database terbagi dua, dan pembedaannya penting.**
+
+| Berkas             | Kode    | Isi                                     | `db:seed:clear` |
+| ------------------ | ------- | --------------------------------------- | --------------- |
+| `official-data.ts` | `YTS-`  | Unit yayasan + registry sistem & situs  | **tidak** dihapus |
+| `seed-data.ts`     | `DEV-`  | Layanan, program, FAQ, event, kontak    | dihapus         |
+
+Data resmi berisi nama unit dan alamat sistem yang diberikan pengurus — itu informasi
+sungguhan, jadi tidak boleh ikut terbuang bersama contoh. Dimuat dengan upsert
+berdasarkan `code`, termasuk `status` dan `visibility`: `db:seed` menyatakan keadaan
+kanoniknya, dan perintah yang tidak bisa memulihkan keadaan yang dinyatakannya bukan
+perintah yang idempoten.
+
+**Satu URL hanya dicatat di satu tempat.** Situs milik unit ada di registry aplikasi,
+bukan juga di `units.website_url`. Halaman unit tidak kehilangan apa pun — ia sudah
+menampilkan registry miliknya. Alasannya bukan kerapian: URL ganda akan diperiksa dua
+kali oleh pemantau tautan, menghasilkan dua baris yang bisa berbeda statusnya. Ada test
+yang menjaganya, dan test itulah yang menangkap kesalahan ini saat data resmi pertama
+kali dimasukkan.
+
+**Lambang yayasan digambar ulang sebagai SVG**, bukan disalin dari berkas vektor asli —
+lihat catatan di `src/components/ui/Logo.astro`. Geometrinya sederhana sehingga hasilnya
+sangat mendekati, tetapi bila berkas vektor resmi tersedia, ganti isi `<svg>`-nya; ukuran
+dan warna sudah lewat token sehingga tidak ada tempat lain yang perlu disentuh. Tulisan
+"Tarbiyah Sunnah" sengaja tetap teks sungguhan (Source Serif 4), bukan path hasil jiplakan.
 
 **Seed di `src/server/db/seed-data.ts` adalah data pengembangan, bukan data resmi YTS.**
 Setiap baris berkode `DEV-` sehingga `db:seed:clear` bisa menghapusnya tanpa menyentuh

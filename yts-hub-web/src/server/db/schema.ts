@@ -194,6 +194,16 @@ export const contacts = pgTable(
     ownerUnitId: uuid('owner_unit_id')
       .notNull()
       .references(() => units.id, { onDelete: 'restrict' }),
+    /**
+     * Kode penanda asal baris, mengikuti pola tabel lain (Fase 6).
+     *
+     * Sebelumnya kontak dihapus lewat unit pemiliknya yang berkode `DEV-`. Sejak
+     * unit menjadi data resmi berkode `YTS-`, cara itu tidak lagi menemukan apa
+     * pun dan kontak contoh akan menumpuk setiap kali seed dijalankan. Kontak
+     * yang dimasukkan pengelola lewat admin tidak berkode, sehingga tidak pernah
+     * ikut terhapus.
+     */
+    code: text('code'),
     label: text('label').notNull(),
     channel: text('channel').notNull(),
     /** Nilai kanal (nomor, email, tautan). Diisi unit pemilik, bukan dikarang. */

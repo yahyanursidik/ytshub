@@ -39,58 +39,6 @@ export const seedFaqCategories = [
   { slug: 'umum', label: 'Umum', summary: 'Pertanyaan lintas unit.' },
 ];
 
-export const seedUnits = [
-  {
-    code: `${SEED_CODE_PREFIX}UNIT-TSLS`,
-    slug: 'ts-lab-school',
-    sortOrder: 1,
-    title: 'TS Lab School',
-    shortName: 'TS Lab School',
-    kind: 'pendidikan' as const,
-    summary: 'Unit pendidikan formal YTS beserta jenjang dan layanannya.',
-    about: PLACEHOLDER,
-  },
-  {
-    code: `${SEED_CODE_PREFIX}UNIT-TSLL`,
-    slug: 'tsl-learning',
-    sortOrder: 2,
-    title: 'TSL Learning',
-    shortName: 'TSL Learning',
-    kind: 'digital' as const,
-    summary: 'Platform belajar daring untuk kelas dan materi YTS.',
-    about: PLACEHOLDER,
-  },
-  {
-    code: `${SEED_CODE_PREFIX}UNIT-KS`,
-    slug: 'kajian-sunnah',
-    sortOrder: 3,
-    title: 'Kajian Sunnah',
-    shortName: 'Kajian Sunnah',
-    kind: 'dakwah' as const,
-    summary: 'Penyelenggaraan kajian rutin, rekaman, dan materi dakwah.',
-    about: PLACEHOLDER,
-  },
-  {
-    code: `${SEED_CODE_PREFIX}UNIT-SOS`,
-    slug: 'program-sosial',
-    sortOrder: 4,
-    title: 'Program Sosial',
-    shortName: 'Program Sosial',
-    kind: 'sosial' as const,
-    summary: 'Penyaluran donasi dan kegiatan sosial kelembagaan.',
-    about: PLACEHOLDER,
-  },
-  {
-    code: `${SEED_CODE_PREFIX}UNIT-HUB`,
-    slug: 'yts-hub',
-    sortOrder: 5,
-    title: 'YTS Hub',
-    shortName: 'YTS Hub',
-    kind: 'digital' as const,
-    summary: 'Pengelola pusat informasi dan direktori sistem digital YTS.',
-    about: PLACEHOLDER,
-  },
-];
 
 export const seedServices = [
   {
@@ -291,44 +239,6 @@ export const seedFaqs = [
   },
 ];
 
-export const seedApplications = [
-  {
-    code: `${SEED_CODE_PREFIX}APP-TSL-LEARNING`,
-    slug: 'tsl-learning',
-    sortOrder: 1,
-    title: 'TSL Learning',
-    name: 'TSL Learning',
-    summary: 'Platform kelas daring: materi, kelas, dan progres belajar peserta.',
-    kind: 'aplikasi' as const,
-    ownerUnitSlug: 'tsl-learning',
-    url: null,
-    ctaLabel: 'Buka',
-  },
-  {
-    code: `${SEED_CODE_PREFIX}APP-PORTAL-SPMB`,
-    slug: 'portal-spmb',
-    sortOrder: 2,
-    title: 'Portal SPMB',
-    name: 'Portal SPMB',
-    summary: 'Sistem pendaftaran peserta didik baru untuk unit pendidikan.',
-    kind: 'portal' as const,
-    ownerUnitSlug: 'ts-lab-school',
-    url: null,
-    ctaLabel: 'Buka',
-  },
-  {
-    code: `${SEED_CODE_PREFIX}WEB-KAJIAN`,
-    slug: 'kajian-sunnah-web',
-    sortOrder: 3,
-    title: 'Kajian Sunnah',
-    name: 'Kajian Sunnah',
-    summary: 'Website publikasi jadwal dan rekaman kajian.',
-    kind: 'website' as const,
-    ownerUnitSlug: 'kajian-sunnah',
-    url: null,
-    ctaLabel: 'Buka',
-  },
-];
 
 /**
  * Event.
@@ -385,6 +295,7 @@ export const seedEvents = [
  */
 export const seedContacts = [
   {
+    code: `${SEED_CODE_PREFIX}CONTACT-01`,
     ownerUnitSlug: 'ts-lab-school',
     label: 'Admin PPDB',
     channel: 'WhatsApp',
@@ -392,6 +303,7 @@ export const seedContacts = [
     note: PLACEHOLDER,
   },
   {
+    code: `${SEED_CODE_PREFIX}CONTACT-02`,
     ownerUnitSlug: 'program-sosial',
     label: 'Admin Donasi',
     channel: 'WhatsApp',
@@ -399,6 +311,7 @@ export const seedContacts = [
     note: PLACEHOLDER,
   },
   {
+    code: `${SEED_CODE_PREFIX}CONTACT-03`,
     ownerUnitSlug: 'kajian-sunnah',
     label: 'Informasi Kajian',
     channel: 'WhatsApp',
@@ -406,6 +319,7 @@ export const seedContacts = [
     note: PLACEHOLDER,
   },
   {
+    code: `${SEED_CODE_PREFIX}CONTACT-04`,
     ownerUnitSlug: 'tsl-learning',
     label: 'Bantuan Kelas Daring',
     channel: 'Email',
@@ -413,6 +327,7 @@ export const seedContacts = [
     note: PLACEHOLDER,
   },
   {
+    code: `${SEED_CODE_PREFIX}CONTACT-05`,
     ownerUnitSlug: 'yts-hub',
     label: 'Kontak Umum YTS Hub',
     channel: 'Email',
