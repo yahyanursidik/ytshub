@@ -732,7 +732,14 @@ export const userUnitRoles = pgTable(
   ],
 );
 
-/** Jenis entity yang tunduk pada lifecycle — 06-CONTENT-MODEL §9. */
+/**
+ * Jenis entity yang tunduk pada lifecycle — 06-CONTENT-MODEL §9.
+ *
+ * Harus mencakup SETIAP kunci di `ENTITIES` (src/server/admin/entities.ts).
+ * Entity yang ada di sana tetapi tidak di sini akan gagal saat audit ditulis —
+ * dan karena penulisan audit berada dalam transaksi yang sama dengan perubahan
+ * kontennya, yang gagal adalah penyuntingannya, bukan sekadar pencatatannya.
+ */
 export const auditEntity = pgEnum('audit_entity', [
   'unit',
   'service',
@@ -740,6 +747,7 @@ export const auditEntity = pgEnum('audit_entity', [
   'event',
   'faq',
   'application',
+  'announcement',
 ]);
 
 export const auditAction = pgEnum('audit_action', [
@@ -970,6 +978,95 @@ export const outboundClicks = pgTable(
   ],
 );
 
+/* ------------------------------------------------ pengumuman (Fase 8) */
+
+/**
+ * Pengumuman berbatas waktu — mis. "SPMB sedang dibuka".
+ *
+ * ## Kenapa entity sendiri, bukan banner yang ditulis di kode
+ *
+ * Pengumuman seperti pembukaan SPMB berulang setiap tahun dan berakhir pada
+ * tanggal tertentu. Banner yang ditulis langsung di komponen menuntut
+ * pengembang untuk memasang DAN mencabutnya — dan yang kedua hampir selalu
+ * terlambat, sehingga situs mengumumkan pendaftaran yang sudah lama tutup.
+ * Sebagai entity, pengurus memasangnya sendiri lewat admin dan ia berhenti
+ * tampil sendiri saat `endAt` lewat.
+ *
+ * ## Masa berlaku
+ *
+ * `startAt` wajib; `endAt` boleh kosong untuk pengumuman yang belum diketahui
+ * kapan berakhirnya. Itu keadaan yang sah — tanggal tutup SPMB memang sering
+ * belum ditetapkan saat pendaftaran dibuka — tetapi berisiko menjadi konten
+ * basi, jadi laporan kesehatan konten menandainya sampai diisi.
+ *
+ * Lifecycle dan visibility ikut `publicEntityColumns`, sehingga pengumuman
+ * tunduk pada alur draft → tinjau → terbit yang sama dengan konten lain. Sebuah
+ * pengumuman salah yang tayang di beranda merugikan lebih cepat daripada
+ * halaman detail yang keliru, dan justru itu alasan ia tidak boleh punya jalur
+ * penerbitan sendiri yang lebih longgar.
+ */
+export const announcements = pgTable(
+  'announcements',
+  {
+    ...publicEntityColumns(),
+    /** Unit yang bertanggung jawab; null berarti tingkat yayasan. */
+    ownerUnitId: uuid('owner_unit_id').references(() => units.id, { onDelete: 'restrict' }),
+    /** Kalimat pendek untuk banner beranda — bukan judul, bukan ringkasan. */
+    bannerText: text('banner_text').notNull(),
+    /** Label tombol di banner, mis. "Lihat SPMB yang dibuka". */
+    ctaLabel: text('cta_label').notNull(),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    /** Kosong = belum ditetapkan kapan berakhir. Ditandai laporan kesehatan. */
+    endAt: timestamp('end_at', { withTimezone: true }),
+    /**
+     * Menaikkan pengumuman ke banner beranda.
+     *
+     * Dipisah dari "terbit" karena keduanya pertanyaan berbeda: terbit berarti
+     * halamannya boleh dibaca, disorot berarti ia layak memotong perhatian
+     * setiap pengunjung. Beranda hanya menampilkan SATU — yang paling mendesak
+     * menurut sortOrder — karena dua banner sekaligus membuat keduanya
+     * terabaikan.
+     */
+    isHighlighted: boolean('is_highlighted').notNull().default(false),
+    sortOrder: integer('sort_order').notNull().default(0),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      searchVector({ a: ['title'], b: ['summary'], c: ['description'] }),
+    ),
+  },
+  (table) => [
+    uniqueIndex('announcements_slug_key').on(table.slug),
+    uniqueIndex('announcements_code_key').on(table.code),
+    index('announcements_active_idx').on(table.status, table.visibility, table.startAt),
+    index('announcements_owner_idx').on(table.ownerUnitId),
+    index('announcements_search_idx').using('gin', table.searchVector),
+  ],
+);
+
+/**
+ * Sistem yang dituju sebuah pengumuman.
+ *
+ * Pengumuman TIDAK menyimpan URL sendiri. Alamat portal SPMB sudah ada di
+ * registry aplikasi, dan menyalinnya ke sini berarti dua tempat yang harus
+ * dijaga tetap sama — persis kesalahan yang sudah diperbaiki pada Fase 6, dan
+ * pemantau tautan pun akan memeriksa alamat yang sama dua kali.
+ */
+export const announcementsToApplications = pgTable(
+  'announcements_to_applications',
+  {
+    announcementId: uuid('announcement_id')
+      .notNull()
+      .references(() => announcements.id, { onDelete: 'cascade' }),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => applications.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.announcementId, table.applicationId] }),
+    index('announcements_to_applications_app_idx').on(table.applicationId),
+  ],
+);
+
 /* -------------------------------------------------------------- relations */
 
 export const unitsRelations = relations(units, ({ many, one }) => ({
@@ -1041,6 +1138,25 @@ export const userUnitRolesRelations = relations(userUnitRoles, ({ one }) => ({
 export const contentAuditRelations = relations(contentAudit, ({ one }) => ({
   actor: one(users, { fields: [contentAudit.actorId], references: [users.id] }),
 }));
+
+export const announcementsRelations = relations(announcements, ({ one, many }) => ({
+  ownerUnit: one(units, { fields: [announcements.ownerUnitId], references: [units.id] }),
+  applications: many(announcementsToApplications),
+}));
+
+export const announcementsToApplicationsRelations = relations(
+  announcementsToApplications,
+  ({ one }) => ({
+    announcement: one(announcements, {
+      fields: [announcementsToApplications.announcementId],
+      references: [announcements.id],
+    }),
+    application: one(applications, {
+      fields: [announcementsToApplications.applicationId],
+      references: [applications.id],
+    }),
+  }),
+);
 
 export const applicationsRelations = relations(applications, ({ one }) => ({
   ownerUnit: one(units, { fields: [applications.ownerUnitId], references: [units.id] }),

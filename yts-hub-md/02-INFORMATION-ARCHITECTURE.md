@@ -101,7 +101,7 @@ Gunakan pada halaman level ≥2.
 
 Contoh:
 ```text
-Beranda / Layanan / PPDB Online
+Beranda / Layanan / SPMB
 ```
 
 Jangan tampilkan breadcrumb di hero landing page.
@@ -118,7 +118,7 @@ Gunakan URL manusiawi dan stabil:
 ```text
 /unit/ts-lab-school
 /program/belajar-islam-dasar
-/layanan/ppdb-online
+/layanan/spmb
 /event/nama-event
 /faq/cara-daftar-preschool
 /aplikasi/tsl-learning

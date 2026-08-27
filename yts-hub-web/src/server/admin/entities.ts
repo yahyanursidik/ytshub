@@ -9,9 +9,24 @@
  * Konsekuensinya disengaja: menambah entity baru berarti menambah satu entri di
  * berkas ini, bukan menyalin sebuah folder.
  */
-import { applications, events, faqs, programs, services, units } from '@/server/db/schema';
+import {
+  announcements,
+  applications,
+  events,
+  faqs,
+  programs,
+  services,
+  units,
+} from '@/server/db/schema';
 
-export type EntityKey = 'unit' | 'service' | 'program' | 'event' | 'faq' | 'application';
+export type EntityKey =
+  | 'unit'
+  | 'service'
+  | 'program'
+  | 'event'
+  | 'faq'
+  | 'application'
+  | 'announcement';
 
 export type FieldType = 'text' | 'textarea' | 'url' | 'select' | 'boolean' | 'number' | 'datetime';
 
@@ -38,7 +53,8 @@ export interface EntitySpec {
     | typeof programs
     | typeof events
     | typeof faqs
-    | typeof applications;
+    | typeof applications
+    | typeof announcements;
   /** Kolom unit pemilik — dasar seluruh pemeriksaan izin berlingkup unit. */
   ownerColumn: 'ownerUnitId' | 'organizerUnitId' | 'self';
   /** Kolom yang dipakai sebagai judul di daftar admin. */
@@ -71,6 +87,52 @@ const visibilityField: FieldSpec = {
 };
 
 export const ENTITIES: Record<EntityKey, EntitySpec> = {
+  announcement: {
+    key: 'announcement',
+    slug: 'pengumuman',
+    label: 'Pengumuman',
+    labelPlural: 'Pengumuman',
+    table: announcements,
+    // Boleh milik yayasan (null) untuk pengumuman lintas unit seperti SPMB.
+    ownerColumn: 'ownerUnitId',
+    titleColumn: 'title',
+    publicPath: (slug) => `/info/${slug}`,
+    fields: [
+      { name: 'title', label: 'Judul', type: 'text', required: true },
+      {
+        name: 'bannerText',
+        label: 'Teks banner',
+        type: 'text',
+        required: true,
+        maxLength: 120,
+        help: 'Satu kalimat yang muncul di beranda. Bukan judul, bukan ringkasan — kalimat yang dibaca sekilas.',
+      },
+      { name: 'ctaLabel', label: 'Label tombol banner', type: 'text', required: true },
+      ...commonFields,
+      {
+        name: 'startAt',
+        label: 'Mulai berlaku',
+        type: 'datetime',
+        required: true,
+        help: 'Sebelum tanggal ini pengumuman tidak tampil, meski sudah terbit.',
+      },
+      {
+        name: 'endAt',
+        label: 'Berakhir',
+        type: 'datetime',
+        help: 'Setelah tanggal ini pengumuman berhenti tampil dengan sendirinya. Kosongkan hanya bila tanggalnya memang belum ditetapkan — jangan menebak.',
+      },
+      {
+        name: 'isHighlighted',
+        label: 'Tampilkan di banner beranda',
+        type: 'boolean',
+        help: 'Beranda hanya menampilkan satu banner: yang urutannya paling kecil di antara yang ditandai.',
+      },
+      { name: 'sortOrder', label: 'Urutan tampil', type: 'number' },
+      visibilityField,
+    ],
+  },
+
   unit: {
     key: 'unit',
     slug: 'unit',
@@ -289,6 +351,7 @@ export const ENTITIES: Record<EntityKey, EntitySpec> = {
 
 /** Daftar entity untuk navigasi admin, urut sesuai cara orang memikirkannya. */
 export const ENTITY_ORDER: EntityKey[] = [
+  'announcement',
   'service',
   'program',
   'faq',

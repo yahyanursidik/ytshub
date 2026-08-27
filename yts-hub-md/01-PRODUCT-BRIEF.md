@@ -83,7 +83,7 @@ Landing page dan navigasi harus mengikuti pola kebutuhan tersebut.
 ## 9. Out of Scope MVP
 - Full CRM functionality
 - LMS functionality
-- PPDB transaction engine
+- SPMB transaction engine
 - Donation transaction engine
 - Event registration engine
 - AI chatbot/RAG

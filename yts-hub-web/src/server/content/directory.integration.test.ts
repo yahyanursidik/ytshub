@@ -71,7 +71,7 @@ describeDb('query direktori', () => {
   });
 
   it('detail layanan punya minimal 2 blok related (02-IA §7, no dead ends)', async () => {
-    const detail = await getServiceDetail('ppdb-online');
+    const detail = await getServiceDetail('spmb');
     expect(detail).not.toBeNull();
     const blocks = [
       detail!.relatedFaqs.length,

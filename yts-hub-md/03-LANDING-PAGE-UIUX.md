@@ -85,7 +85,7 @@ Desktop: 4–5 cards per row sesuai viewport.
 Mobile: horizontal snap atau stack 1 kolom/2 kolom berdasarkan isi.
 
 Contoh:
-- PPDB Online
+- SPMB
 - Donasi Online
 - Konsultasi
 - Cek Status Donasi

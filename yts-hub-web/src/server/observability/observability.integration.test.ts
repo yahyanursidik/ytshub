@@ -144,7 +144,7 @@ describeDb('observability', () => {
 
   describe('analytics pemakaian', () => {
     it('membuang query string dan garis miring di ujung', () => {
-      expect(normalizePath('/layanan/ppdb?utm=x')).toBe('/layanan/ppdb');
+      expect(normalizePath('/layanan/spmb?utm=x')).toBe('/layanan/spmb');
       expect(normalizePath('/layanan/')).toBe('/layanan');
       expect(normalizePath('/')).toBe('/');
       expect(normalizePath('/faq#bagian')).toBe('/faq');
@@ -222,17 +222,17 @@ describeDb('observability', () => {
       const placeholder = report.issues.filter((issue) => issue.kind === 'placeholder');
 
       expect(placeholder.length).toBeGreaterThan(0);
-      expect(placeholder.some((issue) => issue.slug === 'ppdb-online')).toBe(true);
+      expect(placeholder.some((issue) => issue.slug === 'spmb')).toBe(true);
     });
 
     it('konten yang belum terbit tidak ikut dilaporkan', async () => {
       await db
         .update(schema.services)
         .set({ status: 'draft' })
-        .where(eq(schema.services.slug, 'ppdb-online'));
+        .where(eq(schema.services.slug, 'spmb'));
 
       const report = await contentHealth(null);
-      expect(report.issues.some((issue) => issue.slug === 'ppdb-online')).toBe(false);
+      expect(report.issues.some((issue) => issue.slug === 'spmb')).toBe(false);
     });
 
     it('temuan hilang begitu placeholder diganti isi sungguhan', async () => {
@@ -243,11 +243,11 @@ describeDb('observability', () => {
           processSteps: 'Isi formulir, unggah berkas, tunggu verifikasi.',
           feeInformation: 'Tidak dipungut biaya pendaftaran.',
         })
-        .where(eq(schema.services.slug, 'ppdb-online'));
+        .where(eq(schema.services.slug, 'spmb'));
 
       const report = await contentHealth(null);
       const found = report.issues.filter(
-        (issue) => issue.slug === 'ppdb-online' && issue.kind === 'placeholder',
+        (issue) => issue.slug === 'spmb' && issue.kind === 'placeholder',
       );
       expect(found).toHaveLength(0);
     });

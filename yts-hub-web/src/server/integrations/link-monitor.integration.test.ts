@@ -86,7 +86,7 @@ describeDb('pemantauan tautan', () => {
 
   describe('pengumpulan target', () => {
     it('mengumpulkan URL dari kelima entity yang bisa punya tautan', async () => {
-      await setServiceUrl('ppdb-online', `${base}/layanan`);
+      await setServiceUrl('spmb', `${base}/layanan`);
       await db.update(schema.units).set({ websiteUrl: `${base}/unit` });
       await db.update(schema.programs).set({ ctaUrl: `${base}/program` });
       await db.update(schema.events).set({ registrationUrl: `${base}/event` });
@@ -97,7 +97,7 @@ describeDb('pemantauan tautan', () => {
     });
 
     it('mengabaikan skema selain http(s)', async () => {
-      await setServiceUrl('ppdb-online', 'mailto:admin@yts.test');
+      await setServiceUrl('spmb', 'mailto:admin@yts.test');
       const targets = await collectTargets();
       expect(targets.some((target) => target.field === 'ctaUrl')).toBe(false);
     });
@@ -108,22 +108,22 @@ describeDb('pemantauan tautan', () => {
      * belum terbit.
      */
     it('tidak memeriksa tautan pada konten yang belum terbit', async () => {
-      await setServiceUrl('ppdb-online', `${base}/rahasia`);
+      await setServiceUrl('spmb', `${base}/rahasia`);
       await db
         .update(schema.services)
         .set({ status: 'draft' })
-        .where(eq(schema.services.slug, 'ppdb-online'));
+        .where(eq(schema.services.slug, 'spmb'));
 
       const targets = await collectTargets();
       expect(targets.some((target) => target.url.includes('/rahasia'))).toBe(false);
     });
 
     it('tidak memeriksa tautan pada konten yang tidak publik', async () => {
-      await setServiceUrl('ppdb-online', `${base}/internal`);
+      await setServiceUrl('spmb', `${base}/internal`);
       await db
         .update(schema.services)
         .set({ visibility: 'internal' })
-        .where(eq(schema.services.slug, 'ppdb-online'));
+        .where(eq(schema.services.slug, 'spmb'));
 
       const targets = await collectTargets();
       expect(targets.some((target) => target.url.includes('/internal'))).toBe(false);
@@ -132,7 +132,7 @@ describeDb('pemantauan tautan', () => {
 
   describe('pemeriksaan & penyimpanan', () => {
     it('mencatat tautan sehat', async () => {
-      await setServiceUrl('ppdb-online', `${base}/ok`);
+      await setServiceUrl('spmb', `${base}/ok`);
       const summary = await checkAllLinks();
 
       expect(summary.checked).toBe(1);
@@ -145,7 +145,7 @@ describeDb('pemantauan tautan', () => {
     });
 
     it('404 langsung rusak dan dilaporkan sebagai baru rusak', async () => {
-      await setServiceUrl('ppdb-online', `${base}/hilang`);
+      await setServiceUrl('spmb', `${base}/hilang`);
       responses['/hilang'] = 404;
 
       const summary = await checkAllLinks();
@@ -158,7 +158,7 @@ describeDb('pemantauan tautan', () => {
     });
 
     it('mencatat pengalihan beserta alamat tujuannya', async () => {
-      await setServiceUrl('ppdb-online', `${base}/pindah`);
+      await setServiceUrl('spmb', `${base}/pindah`);
       const summary = await checkAllLinks();
 
       expect(summary.redirected).toBe(1);
@@ -169,7 +169,7 @@ describeDb('pemantauan tautan', () => {
 
     /** Inti dari desain ini: gangguan sesaat tidak boleh langsung jadi alarm. */
     it('5xx naik menjadi rusak hanya setelah gagal berturut-turut', async () => {
-      await setServiceUrl('ppdb-online', `${base}/goyah`);
+      await setServiceUrl('spmb', `${base}/goyah`);
       responses['/goyah'] = 503;
 
       for (let attempt = 1; attempt < FAILURES_BEFORE_BROKEN; attempt += 1) {
@@ -184,7 +184,7 @@ describeDb('pemantauan tautan', () => {
     });
 
     it('pulih menghapus riwayat kegagalan', async () => {
-      await setServiceUrl('ppdb-online', `${base}/pulih`);
+      await setServiceUrl('spmb', `${base}/pulih`);
       responses['/pulih'] = 503;
       await checkAllLinks();
 
@@ -202,13 +202,13 @@ describeDb('pemantauan tautan', () => {
      * dari riwayat alamat lama.
      */
     it('URL yang diganti memulai riwayat kegagalan dari nol', async () => {
-      await setServiceUrl('ppdb-online', `${base}/lama`);
+      await setServiceUrl('spmb', `${base}/lama`);
       responses['/lama'] = 503;
       for (let i = 0; i < FAILURES_BEFORE_BROKEN; i += 1) await checkAllLinks();
 
       expect((await db.select().from(schema.externalLinks))[0]?.status).toBe('broken');
 
-      await setServiceUrl('ppdb-online', `${base}/baru`);
+      await setServiceUrl('spmb', `${base}/baru`);
       responses['/baru'] = 503;
       const summary = await checkAllLinks();
 
@@ -217,11 +217,11 @@ describeDb('pemantauan tautan', () => {
     });
 
     it('tautan yang dihapus editor ikut hilang dari daftar', async () => {
-      await setServiceUrl('ppdb-online', `${base}/sementara`);
+      await setServiceUrl('spmb', `${base}/sementara`);
       await checkAllLinks();
       expect(await db.select().from(schema.externalLinks)).toHaveLength(1);
 
-      await setServiceUrl('ppdb-online', null);
+      await setServiceUrl('spmb', null);
       const summary = await checkAllLinks();
 
       expect(summary.removed).toBe(1);
@@ -229,7 +229,7 @@ describeDb('pemantauan tautan', () => {
     });
 
     it('tautan yang sudah rusak tidak dilaporkan ulang sebagai baru rusak', async () => {
-      await setServiceUrl('ppdb-online', `${base}/hilang`);
+      await setServiceUrl('spmb', `${base}/hilang`);
       responses['/hilang'] = 404;
 
       expect((await checkAllLinks()).newlyBroken).toHaveLength(1);
@@ -240,16 +240,16 @@ describeDb('pemantauan tautan', () => {
 
   describe('laporan', () => {
     it('menyertakan judul konten dan unit pemiliknya', async () => {
-      await setServiceUrl('ppdb-online', `${base}/ok`);
+      await setServiceUrl('spmb', `${base}/ok`);
       await checkAllLinks();
 
       const rows = await listLinks();
-      expect(rows[0]?.title).toBe('PPDB Online');
+      expect(rows[0]?.title).toBe('SPMB');
       expect(rows[0]?.unitName).toBeTruthy();
     });
 
     it('mengurutkan yang rusak lebih dulu', async () => {
-      await setServiceUrl('ppdb-online', `${base}/ok`);
+      await setServiceUrl('spmb', `${base}/ok`);
       await db.update(schema.applications).set({ url: `${base}/hilang` });
       responses['/hilang'] = 404;
       await checkAllLinks();

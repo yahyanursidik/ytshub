@@ -1,0 +1,106 @@
+---
+/**
+ * Banner pengumuman berbatas waktu di beranda.
+ *
+ * ## Kenapa di atas hero, bukan di dalamnya
+ *
+ * Hero adalah janji tetap situs ini — "temukan informasi dan layanan YTS".
+ * Pengumuman adalah keadaan sementara. Menyisipkannya ke dalam hero akan
+ * mengubah wajah beranda setiap kali ada pendaftaran dibuka, dan mengembalikannya
+ * setiap kali ditutup; menaruhnya sebagai pita di atas membuat keduanya bisa
+ * hidup berdampingan tanpa saling merusak.
+ *
+ * ## Bukan gaya "pengumuman penting" yang berteriak
+ *
+ * Tanpa warna merah, tanpa ikon seru, tanpa animasi. 05-HALLMARK-ANTI-SLOP.md §4
+ * menolak elemen dekoratif yang tidak menambah makna, dan sebuah pita yang
+ * berbeda dari sekelilingnya sudah cukup menarik perhatian. Warna bahaya
+ * disimpan untuk hal yang memang berbahaya — di admin, untuk tautan rusak dan
+ * kesalahan sistem.
+ *
+ * Tidak dirender sama sekali bila tidak ada pengumuman yang sedang berlaku;
+ * masa berlakunya dihitung di SQL, bukan di sini.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import type { ActiveAnnouncement } from '@/server/content/announcement-queries';
+
+interface Props {
+  announcement: ActiveAnnouncement | null;
+}
+
+const { announcement } = Astro.props;
+---
+
+{
+  announcement && (
+    <aside class="banner" aria-label="Pengumuman">
+      <div class="container banner__inner">
+        <p class="banner__text">
+          <span class="banner__tag">Pengumuman</span>
+          {announcement.bannerText}
+        </p>
+        <a class="banner__cta" href={`/info/${announcement.slug}`}>
+          {announcement.ctaLabel}
+          <Icon name="arrow-right" size={15} />
+        </a>
+      </div>
+    </aside>
+  )
+}
+
+<style>
+  .banner {
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .banner__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-6);
+    padding-block: var(--space-3);
+  }
+
+  .banner__text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    font-size: var(--text-small);
+  }
+
+  .banner__tag {
+    padding-inline: 0.5rem;
+    padding-block: 0.1rem;
+    border: 1px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
+    border-radius: 999px;
+    color: var(--color-brand);
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .banner__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    /* 09-A11Y §2 — target sentuh utama, bukan tautan inline. */
+    min-height: 44px;
+    font-size: var(--text-small);
+    font-weight: 550;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 560px) {
+    .banner__inner {
+      /* Di layar sempit tombol turun ke bawah teks, bukan berdesakan di
+         sampingnya sampai keduanya terpotong. */
+      align-items: flex-start;
+    }
+  }
+</style>

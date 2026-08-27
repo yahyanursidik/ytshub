@@ -42,7 +42,7 @@ Contoh:
 ```text
 id: UUID
 code: SERVICE-SPMB-TSLS
-slug: ppdb-online
+slug: spmb
 ```
 
 ## 5. External Link UX

@@ -50,10 +50,10 @@ describeDb('pencarian terpadu', () => {
 
 
   it('menemukan layanan dari nama persisnya', async () => {
-    const hasil = await search('ppdb online');
+    const hasil = await search('spmb');
     expect(hasil.total).toBeGreaterThan(0);
     expect(hasil.top?.type).toBe('service');
-    expect(hasil.top?.slug).toBe('ppdb-online');
+    expect(hasil.top?.slug).toBe('spmb');
   });
 
   it('menemukan FAQ dari alias yang tidak muncul di pertanyaannya', async () => {
@@ -185,14 +185,14 @@ describeDb('pencarian terpadu', () => {
     });
 
     it('mencatat hasil yang diklik beserta peringkatnya', async () => {
-      const id = await recordSearch('ppdb', 3);
-      await recordResultClick(id!, 'service', 'ppdb-online', 1);
+      const id = await recordSearch('spmb', 3);
+      await recordResultClick(id!, 'service', 'spmb', 1);
 
       const [baris] = await db
         .select()
         .from(schema.searchQueries)
         .where(eq(schema.searchQueries.id, id!));
-      expect(baris?.clickedSlug).toBe('ppdb-online');
+      expect(baris?.clickedSlug).toBe('spmb');
       expect(baris?.clickedRank).toBe(1);
     });
 

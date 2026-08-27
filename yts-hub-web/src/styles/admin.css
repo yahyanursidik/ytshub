@@ -537,3 +537,8 @@
   color: var(--color-text-muted);
   border-style: dashed;
 }
+
+.status--issue-tanpa-akhir {
+  color: var(--c-accent-warm);
+  border-color: color-mix(in srgb, var(--c-accent-warm) 50%, transparent);
+}

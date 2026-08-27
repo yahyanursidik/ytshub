@@ -111,7 +111,7 @@ describeDb('core registry (PostgreSQL sungguhan)', () => {
     await expect(
       db.insert(schema.services).values({
         code: 'TEST-DUP-SLUG',
-        slug: 'ppdb-online', // sudah dipakai seed
+        slug: 'spmb', // sudah dipakai seed
         title: 'Duplikat',
         summary: 'x',
         category: 'x',
@@ -174,15 +174,15 @@ describeDb('gate konten publik', () => {
     await db
       .update(schema.services)
       .set({ status: 'archived' })
-      .where(sql`${schema.services.slug} = 'ppdb-online'`);
+      .where(sql`${schema.services.slug} = 'spmb'`);
 
     const services = await getPopularServices(20);
-    expect(services.map((s) => s.slug)).not.toContain('ppdb-online');
+    expect(services.map((s) => s.slug)).not.toContain('spmb');
 
     await db
       .update(schema.services)
       .set({ status: 'published' })
-      .where(sql`${schema.services.slug} = 'ppdb-online'`);
+      .where(sql`${schema.services.slug} = 'spmb'`);
   });
 
   it('konten draft tidak pernah muncul di hasil publik', async () => {

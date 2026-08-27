@@ -20,6 +20,7 @@ import { schema, type Database } from '@/server/db/client';
 import { nextReviewDate } from '@/server/auth/roles';
 import {
   OFFICIAL_CODE_PREFIX,
+  officialAnnouncements,
   officialApplications,
   officialUnits,
 } from '@/server/db/official-data';
@@ -379,6 +380,70 @@ export async function runSeed(db: Db): Promise<void> {
         updatedAt: new Date(),
       },
     });
+
+  // ---- pengumuman: DATA RESMI, dimuat sekali ----
+  //
+  // `onConflictDoNothing`, BUKAN upsert seperti unit dan registry di atas.
+  // Pengumuman adalah konten redaksional bermasa berlaku: pengurus akan
+  // menyuntingnya, menambah tanggal tutup, dan mencabutnya. Menimpanya setiap
+  // seed berarti mengembalikan teks lama dan menghidupkan lagi pengumuman yang
+  // sudah sengaja diakhiri.
+  const announcementRows = await db
+    .insert(schema.announcements)
+    .values(
+      officialAnnouncements.map((announcement) => ({
+        code: announcement.code,
+        slug: announcement.slug,
+        title: announcement.title,
+        summary: announcement.summary,
+        description: announcement.description,
+        bannerText: announcement.bannerText,
+        ctaLabel: announcement.ctaLabel,
+        ownerUnitId: requireUnit(announcement.ownerUnitSlug),
+        isHighlighted: announcement.isHighlighted,
+        startAt: announcement.startAt,
+        endAt: announcement.endAt,
+        sortOrder: announcement.sortOrder,
+        status: 'published' as const,
+        visibility: 'public' as const,
+        publishedAt,
+        reviewedAt: publishedAt,
+        reviewDueAt: nextReviewDate('announcement', publishedAt),
+      })),
+    )
+    .onConflictDoNothing()
+    .returning({ id: schema.announcements.id, slug: schema.announcements.slug });
+
+  // Baris yang sudah ada tidak dikembalikan `onConflictDoNothing`, jadi id-nya
+  // dibaca ulang agar penautan ke portal tetap bisa dipastikan lengkap.
+  const allAnnouncements = await db
+    .select({ id: schema.announcements.id, slug: schema.announcements.slug })
+    .from(schema.announcements);
+  const announcementIdBySlug = new Map(allAnnouncements.map((row) => [row.slug, row.id]));
+  void announcementRows;
+
+  const applicationRows = await db
+    .select({ id: schema.applications.id, slug: schema.applications.slug })
+    .from(schema.applications);
+  const applicationIdBySlug = new Map(applicationRows.map((row) => [row.slug, row.id]));
+
+  const announcementLinks = officialAnnouncements.flatMap((announcement) => {
+    const announcementId = announcementIdBySlug.get(announcement.slug);
+    if (!announcementId) return [];
+    return announcement.applicationSlugs.flatMap((slug, index) => {
+      const applicationId = applicationIdBySlug.get(slug);
+      if (!applicationId) {
+        throw new Error(
+          `Pengumuman "${announcement.slug}" menunjuk sistem "${slug}" yang tidak ada di registry.`,
+        );
+      }
+      return [{ announcementId, applicationId, sortOrder: index + 1 }];
+    });
+  });
+
+  if (announcementLinks.length > 0) {
+    await db.insert(schema.announcementsToApplications).values(announcementLinks).onConflictDoNothing();
+  }
 }
 
 /**

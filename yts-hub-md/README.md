@@ -51,3 +51,19 @@ npx skills add nutlope/hallmark
 ```
 
 Pastikan `DESIGN.md` proyek dibaca sebelum AI membuat atau mengubah UI.
+
+---
+
+## Catatan istilah — Agustus 2026
+
+**PPDB tidak lagi dipakai; istilah resminya SPMB.** Perubahan ini datang dari
+pengurus YTS, dan seluruh dokumen di folder ini beserta implementasinya sudah
+disesuaikan.
+
+Yang ikut berubah di kode: slug layanan `ppdb-online` menjadi `spmb`, judul
+"PPDB Online" menjadi "SPMB", dan event "Sosialisasi PPDB" menjadi
+"Sosialisasi SPMB". Kode entity `SERVICE-SPMB-TSLS` sudah memakai SPMB sejak
+awal sehingga tidak berubah.
+
+Bila menemukan "PPDB" di tempat lain — pada konten yang dimasukkan lewat admin,
+misalnya — itu perlu diperbaiki, bukan dibiarkan sebagai variasi penulisan.

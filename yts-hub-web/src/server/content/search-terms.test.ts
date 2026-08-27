@@ -65,8 +65,8 @@ describe('buildTsQuery', () => {
 
 describe('excerpt', () => {
   const teks =
-    'Pendaftaran dilakukan melalui layanan PPDB Online milik unit pendidikan terkait. ' +
-    'Buka halaman layanan PPDB untuk melihat persyaratan, alur, dan tautan resmi ke sistem. ' +
+    'Pendaftaran dilakukan melalui layanan SPMB milik unit pendidikan terkait. ' +
+    'Buka halaman layanan SPMB untuk melihat persyaratan, alur, dan tautan resmi ke sistem. ' +
     'Detail persyaratan mengikuti pengumuman resmi unit yang bersangkutan sepenuhnya.';
 
   it('mengembalikan teks apa adanya bila sudah cukup pendek', () => {

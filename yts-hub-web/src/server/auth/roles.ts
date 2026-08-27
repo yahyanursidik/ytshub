@@ -252,6 +252,16 @@ export const REVIEW_CADENCE_DAYS: Record<string, number> = {
   faq: 90,
   event: 30,
   application: 90,
+  /**
+   * Pengumuman: 30 hari, sependek program berjalan.
+   *
+   * Justru entity ini yang paling cepat basi — "SPMB sedang dibuka" berhenti
+   * benar pada hari pendaftaran ditutup, dan kesalahannya langsung terlihat
+   * pengunjung di banner beranda. Masa berlakunya sendiri sudah menutup
+   * sebagian besar risiko itu; tinjauan bulanan menutup sisanya untuk
+   * pengumuman yang tanggal berakhirnya belum diisi.
+   */
+  announcement: 30,
 };
 
 /** Tanggal tinjauan berikutnya untuk sebuah entity, dihitung dari saat terbit. */

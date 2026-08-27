@@ -9,6 +9,7 @@
  * build, jadi HTML yang dikirim ke pengguna tetap statis (09-A11Y §5 HTML-first).
  */
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import AnnouncementBanner from '@/components/landing/AnnouncementBanner.astro';
 import Hero from '@/components/landing/Hero.astro';
 import QuickAccess from '@/components/landing/QuickAccess.astro';
 import PopularServices from '@/components/landing/PopularServices.astro';
@@ -26,15 +27,17 @@ import {
   getPublicApplications,
 } from '@/server/content/public-queries';
 import { getTopQueries } from '@/server/content/search-analytics';
+import { getHighlightedAnnouncement } from '@/server/content/announcement-queries';
 import { popularQueries as fallbackQueries } from '@/config/navigation';
 
-const [services, units, programs, faqs, applications, topQueries] = await Promise.all([
+const [services, units, programs, faqs, applications, topQueries, announcement] = await Promise.all([
   getPopularServices(5),
   getFeaturedUnits(4),
   getFeaturedPrograms(3),
   getPopularFaqs(4),
   getPublicApplications(3),
   getTopQueries(4),
+  getHighlightedAnnouncement(),
 ]);
 
 /**
@@ -55,6 +58,7 @@ const popularQueries = topQueries.length > 0 ? topQueries : fallbackQueries;
   description="Pusat informasi dan layanan resmi Yayasan Tarbiyah Sunnah. Temukan program, layanan, unit, dan aplikasi YTS dengan cepat."
   canonicalPath="/"
 >
+  <AnnouncementBanner announcement={announcement} />
   <Hero popularQueries={popularQueries} />
   <QuickAccess />
   <PopularServices services={services} />

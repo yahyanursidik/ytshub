@@ -21,7 +21,12 @@ import { getDb } from '@/server/db/client';
 import { PLACEHOLDER } from '@/server/db/seed-data';
 import { ENTITIES, type EntityKey } from '@/server/admin/entities';
 
-export type IssueKind = 'placeholder' | 'field-kosong' | 'buntu' | 'tanpa-tinjauan';
+export type IssueKind =
+  | 'placeholder'
+  | 'field-kosong'
+  | 'buntu'
+  | 'tanpa-tinjauan'
+  | 'tanpa-akhir';
 
 export interface ContentIssue {
   kind: IssueKind;
@@ -40,6 +45,7 @@ export const ISSUE_LABEL: Record<IssueKind, string> = {
   'field-kosong': 'Field wajib kosong',
   buntu: 'Halaman buntu',
   'tanpa-tinjauan': 'Tanpa jadwal tinjauan',
+  'tanpa-akhir': 'Tayang tanpa tanggal berakhir',
 };
 
 export const ISSUE_WHY: Record<IssueKind, string> = {
@@ -51,6 +57,8 @@ export const ISSUE_WHY: Record<IssueKind, string> = {
     'Tidak punya satu pun tautan lanjutan. 02-IA §7 melarang halaman buntu — pengunjung sampai di sini lalu berhenti.',
   'tanpa-tinjauan':
     'Terbit tanpa tanggal tinjauan, sehingga tidak akan pernah muncul di antrean tinjauan ulang (06-CONTENT-MODEL §10).',
+  'tanpa-akhir':
+    'Pengumuman ini tayang tanpa tanggal berakhir, jadi ia tidak akan berhenti sendiri. Isi tanggalnya begitu ditetapkan — pengumuman pendaftaran yang tertinggal setelah tutup menyesatkan pembacanya.',
 };
 
 interface RawRow {
@@ -100,6 +108,21 @@ async function issuesFor(key: EntityKey, unitIds: string[] | null): Promise<Cont
       : `"${spec.ownerColumn.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)}"`,
   );
 
+  /**
+   * Pemeriksaan khusus pengumuman: sedang tayang tetapi tanpa tanggal berakhir.
+   *
+   * Hanya berlaku untuk entity ini karena hanya ia yang punya masa berlaku.
+   * Keadaannya sah — tanggal tutup pendaftaran sering belum ditetapkan saat
+   * dibuka — tetapi tidak boleh terlupakan: pengumuman yang tidak bisa berhenti
+   * sendiri akan tetap tayang setelah pendaftaran ditutup.
+   */
+  const akhirCheck =
+    key === 'announcement'
+      ? sql`union all
+          select 'tanpa-akhir', 'Tayang tanpa tanggal berakhir.'
+           where t.end_at is null`
+      : sql``;
+
   const columns = placeholderColumns(key);
   const placeholderCheck =
     columns.length === 0
@@ -133,6 +156,7 @@ async function issuesFor(key: EntityKey, unitIds: string[] | null): Promise<Cont
           union all
           select 'tanpa-tinjauan', 'Terbit tetapi review_due_at kosong.'
            where t.review_due_at is null
+          ${akhirCheck}
         ) temuan
        where t.status = 'published' and t.visibility = 'public'
          ${scope}
@@ -154,7 +178,15 @@ export interface HealthReport {
  * @param unitIds unit yang boleh dilihat pemanggil; null = seluruh organisasi
  */
 export async function contentHealth(unitIds: string[] | null): Promise<HealthReport> {
-  const keys: EntityKey[] = ['service', 'program', 'faq', 'event', 'unit', 'application'];
+  const keys: EntityKey[] = [
+    'announcement',
+    'service',
+    'program',
+    'faq',
+    'event',
+    'unit',
+    'application',
+  ];
 
   const perEntity = await Promise.all(keys.map((key) => issuesFor(key, unitIds)));
   const issues = perEntity.flat();
@@ -163,13 +195,20 @@ export async function contentHealth(unitIds: string[] | null): Promise<HealthRep
     placeholder: 0,
     'field-kosong': 0,
     buntu: 0,
+    'tanpa-akhir': 0,
     'tanpa-tinjauan': 0,
   };
   for (const issue of issues) byKind[issue.kind] += 1;
 
   // Placeholder lebih dulu: itu satu-satunya temuan yang sudah terbaca
   // pengunjung sebagai informasi resmi.
-  const ORDER: IssueKind[] = ['placeholder', 'field-kosong', 'buntu', 'tanpa-tinjauan'];
+  const ORDER: IssueKind[] = [
+    'placeholder',
+    'field-kosong',
+    'tanpa-akhir',
+    'buntu',
+    'tanpa-tinjauan',
+  ];
   issues.sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
 
   return { issues, byKind, checked: new Set(issues.map((issue) => issue.entityId)).size };

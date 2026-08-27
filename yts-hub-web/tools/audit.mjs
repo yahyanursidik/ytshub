@@ -19,12 +19,13 @@ const PAGES = [
   '/unit',
   '/unit/ts-lab-school',
   '/layanan',
-  '/layanan/ppdb-online',
+  '/layanan/spmb',
   '/program',
   '/program/belajar-islam-dasar',
   '/event',
   '/event/kajian-pekanan',
   '/aplikasi',
+  '/info/spmb',
   '/hubungi-kami',
   // Fase 4. Halaman hasil diperiksa dalam tiga keadaannya, bukan satu:
   // ada hasil, tanpa hasil, dan belum ada yang dicari — struktur ketiganya

@@ -58,7 +58,7 @@ describeDb('governance konten', () => {
     unitSekolah = units.find((unit) => unit.slug === 'ts-lab-school')!.id;
 
     const services = await db.select().from(schema.services);
-    layananSekolah = services.find((service) => service.slug === 'ppdb-online')!.id;
+    layananSekolah = services.find((service) => service.slug === 'spmb')!.id;
     layananSosial = services.find((service) => service.slug === 'donasi-online')!.id;
   }
 
@@ -178,7 +178,7 @@ describeDb('governance konten', () => {
         editor,
         'service',
         layananSekolah,
-        { status: 'published', title: 'PPDB Online (uji)' },
+        { status: 'published', title: 'SPMB (uji)' },
         null,
       );
 

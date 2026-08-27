@@ -15,7 +15,7 @@ Search harus membantu pengguna menemukan **jawaban atau tindakan**, bukan sekada
 Contoh:
 ```text
 Paling relevan
-- Service: PPDB Online
+- Service: SPMB
 
 FAQ
 - Bagaimana cara mendaftar Preschool?

@@ -89,20 +89,20 @@ describeDb('read API registry', () => {
     await db
       .update(schema.services)
       .set({ status: 'draft' })
-      .where(eq(schema.services.slug, 'ppdb-online'));
+      .where(eq(schema.services.slug, 'spmb'));
 
     const rows = await readRegistry('layanan', BASE);
-    expect(rows.some((row) => row.slug === 'ppdb-online')).toBe(false);
+    expect(rows.some((row) => row.slug === 'spmb')).toBe(false);
   });
 
   it('konten internal tidak muncul di registry', async () => {
     await db
       .update(schema.services)
       .set({ visibility: 'internal' })
-      .where(eq(schema.services.slug, 'ppdb-online'));
+      .where(eq(schema.services.slug, 'spmb'));
 
     const rows = await readRegistry('layanan', BASE);
-    expect(rows.some((row) => row.slug === 'ppdb-online')).toBe(false);
+    expect(rows.some((row) => row.slug === 'spmb')).toBe(false);
   });
 
   it('konten milik unit yang tidak publik ikut tersembunyi', async () => {
@@ -114,7 +114,7 @@ describeDb('read API registry', () => {
       .where(eq(schema.units.slug, 'ts-lab-school'));
 
     const rows = await readRegistry('layanan', BASE);
-    expect(rows.some((row) => row.slug === 'ppdb-online')).toBe(false);
+    expect(rows.some((row) => row.slug === 'spmb')).toBe(false);
   });
 
   it('layanan menyertakan referensi unit pemiliknya, bukan salinan namanya', async () => {

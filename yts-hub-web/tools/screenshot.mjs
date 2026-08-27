@@ -17,7 +17,7 @@ const HIDE_DEV_TOOLBAR = 'astro-dev-toolbar { display: none !important; }';
 const shots = [
   { name: 'desktop-full', width: 1440, height: 900 },
   { name: 'layanan-desktop', width: 1440, height: 900, path: '/layanan' },
-  { name: 'layanan-detail-desktop', width: 1440, height: 900, path: '/layanan/ppdb-online' },
+  { name: 'layanan-detail-desktop', width: 1440, height: 900, path: '/layanan/spmb' },
   { name: 'unit-detail-desktop', width: 1440, height: 900, path: '/unit/ts-lab-school' },
   { name: 'program-desktop', width: 1440, height: 900, path: '/program' },
   { name: 'event-desktop', width: 1440, height: 900, path: '/event' },
@@ -48,6 +48,8 @@ const shots = [
     mobile: true,
     path: '/unit/ts-lab-school',
   },
+  { name: 'info-spmb-desktop', width: 1440, height: 900, path: '/info/spmb' },
+  { name: 'info-spmb-mobile', width: 390, height: 844, mobile: true, path: '/info/spmb' },
   { name: 'desktop-fold', width: 1440, height: 900, full: false },
   { name: 'tablet-full', width: 834, height: 1000 },
   { name: 'mobile-full', width: 390, height: 844, mobile: true },

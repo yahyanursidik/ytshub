@@ -1,0 +1,295 @@
+---
+/**
+ * Halaman pengumuman.
+ *
+ * Alasan halaman ini ada, dan bukan sekadar banner yang menautkan langsung ke
+ * portal: saat SPMB dibuka serentak, ada LEBIH DARI SATU portal, dan pendaftaran
+ * di satu portal tidak berlaku untuk unit lain. Menautkan langsung berarti
+ * menebak jenjang yang dituju pengunjung. Halaman ini menaruh pilihannya di
+ * tangan mereka, dengan keterangan unit dan jenjang di sebelah tiap portal.
+ *
+ * Pengumuman yang sudah lewat masanya TETAP bisa dibuka — tautannya sering sudah
+ * tersebar di grup dan pesan berantai. Halamannya menyatakan bahwa masanya sudah
+ * berakhir; itu jauh lebih menolong daripada 404 yang membuat orang mengira
+ * dirinya salah alamat.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import Icon from '@/components/ui/Icon.astro';
+import {
+  getAnnouncement,
+  getAnnouncementSlugs,
+} from '@/server/content/announcement-queries';
+import { linkStatusFor } from '@/server/integrations/link-monitor';
+
+export async function getStaticPaths() {
+  const rows = await getAnnouncementSlugs();
+  return rows.map((row) => ({ params: { slug: row.slug } }));
+}
+
+const { slug } = Astro.params;
+const info = await getAnnouncement(slug!);
+
+if (!info) {
+  return Astro.rewrite('/404');
+}
+
+/**
+ * Tautan yang diketahui rusak tidak disodorkan sebagai tombol — aturan yang sama
+ * dengan halaman layanan (08-INTEGRATION §6). Pada halaman pendaftaran, akibat
+ * salah arah lebih besar: orang mengira pendaftaran bermasalah, padahal
+ * portalnya yang sedang tidak bisa dibuka.
+ */
+const linkStatus = await linkStatusFor(
+  'application',
+  info.targets.map((target) => target.id),
+);
+const isBroken = (target: (typeof info.targets)[number]) =>
+  linkStatus.get(`${target.id}:url`) === 'broken';
+
+const KIND_LABEL: Record<string, string> = {
+  aplikasi: 'Aplikasi',
+  website: 'Website',
+  portal: 'Portal',
+};
+
+const formatDate = (value: Date) =>
+  new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeZone: 'Asia/Jakarta' }).format(value);
+---
+
+<BaseLayout
+  title={info.seoTitle ?? info.title}
+  description={info.seoDescription ?? info.summary}
+  canonicalPath={`/info/${info.slug}`}
+>
+  <PageHeader
+    eyebrow="Pengumuman"
+    title={info.title}
+    lead={info.summary}
+    crumbs={[{ label: 'Beranda', href: '/' }, { label: info.title }]}
+  />
+
+  <div class="container info">
+    {
+      info.hasEnded && (
+        <p class="notice notice--ended" role="status">
+          <strong>Masa pengumuman ini sudah berakhir</strong> pada {formatDate(info.endAt!)}.
+          Informasi di bawah dibiarkan agar tautan yang sudah tersebar tetap sampai ke halaman
+          yang benar. Untuk keadaan terkini, hubungi unit penyelenggara.
+        </p>
+      )
+    }
+
+    {
+      !info.hasStarted && (
+        <p class="notice notice--soon" role="status">
+          <strong>Belum dibuka.</strong> Pengumuman ini berlaku mulai {formatDate(info.startAt)}.
+        </p>
+      )
+    }
+
+    {
+      info.description && (
+        <div class="info__body">
+          {info.description.split('\n\n').map((paragraph) => (
+            <p>{paragraph}</p>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      info.targets.length > 0 && (
+        <section class="targets" aria-labelledby="portal">
+          <h2 id="portal">Portal pendaftaran</h2>
+          <p class="targets__lead">
+            Pilih portal sesuai unit dan jenjang yang dituju. Setiap portal berdiri sendiri —
+            pendaftaran di satu portal tidak berlaku untuk unit lain.
+          </p>
+
+          <ul class="targets__list">
+            {info.targets.map((target) => (
+              <li>
+                <div class="targets__head">
+                  <p class="targets__meta">
+                    <span class="targets__kind">{KIND_LABEL[target.kind] ?? target.kind}</span>
+                    {target.unitName && <span class="targets__unit">{target.unitName}</span>}
+                  </p>
+                  <h3>{target.name}</h3>
+                </div>
+                <p class="targets__summary">{target.summary}</p>
+
+                {target.url && isBroken(target) ? (
+                  <p class="targets__broken">
+                    Portal ini sedang tidak bisa dibuka.
+                    <span>
+                      Sudah tercatat dan dilaporkan ke unit penyelenggara. Hubungi unitnya untuk
+                      cara mendaftar sementara ini.
+                    </span>
+                  </p>
+                ) : target.url ? (
+                  <a
+                    class="btn btn--primary targets__cta"
+                    href={target.url}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {target.ctaLabel}
+                    <Icon name="external" size={16} />
+                    <span class="visually-hidden">
+                      {target.name} — membuka situs di luar YTS Hub, di tab baru
+                    </span>
+                  </a>
+                ) : (
+                  <p class="targets__pending">Tautan portal belum tersedia.</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="after" aria-labelledby="lanjut">
+      <h2 id="lanjut">Masih ada yang perlu ditanyakan?</h2>
+      <p>
+        Persyaratan, jadwal, dan ketentuan biaya ditetapkan unit penyelenggara. Bila belum
+        menemukan jawabannya, telusuri <a href="/faq">FAQ</a> atau{' '}
+        <a href="/hubungi-kami">hubungi kanal resmi YTS</a>.
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .info {
+    padding-block: var(--space-10) var(--space-16);
+  }
+
+  .notice {
+    max-width: 68ch;
+    margin-bottom: var(--space-8);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+    font-size: var(--text-small);
+  }
+
+  .notice--ended {
+    border-color: var(--c-accent-warm);
+    background-color: color-mix(in srgb, var(--c-accent-warm) 8%, transparent);
+  }
+
+  .notice--soon {
+    background-color: var(--color-surface-muted);
+  }
+
+  .info__body {
+    max-width: 68ch;
+  }
+
+  .info__body p + p {
+    margin-top: var(--space-4);
+  }
+
+  .targets {
+    margin-top: var(--space-12);
+  }
+
+  .targets h2,
+  .after h2 {
+    font-size: var(--text-h3);
+  }
+
+  .targets__lead {
+    max-width: 68ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .targets__list {
+    display: grid;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+  }
+
+  .targets__list li {
+    padding: var(--space-6);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .targets__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    align-items: baseline;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .targets__kind {
+    color: var(--color-brand);
+    font-weight: 600;
+  }
+
+  .targets__head h3 {
+    margin-top: var(--space-2);
+    font-size: var(--text-h4);
+  }
+
+  .targets__summary {
+    max-width: 60ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .targets__cta {
+    margin-top: var(--space-4);
+  }
+
+  .targets__pending {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  /* "Rusak" dibedakan dari "belum tersedia": yang satu perlu ditunggu, yang
+     lain sedang ditangani — dan pada halaman pendaftaran, bedanya menentukan
+     apakah orang perlu menghubungi unit sekarang juga. */
+  .targets__broken {
+    margin-top: var(--space-4);
+    color: var(--color-danger);
+    font-weight: 550;
+  }
+
+  .targets__broken span {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .after {
+    margin-top: var(--space-12);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .after p {
+    max-width: 68ch;
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  /* Dua portal berdampingan begitu ruangnya cukup: perbandingannya lebih mudah
+     dibaca berdampingan daripada bertumpuk. */
+  @media (min-width: 720px) {
+    .targets__list {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    }
+  }
+</style>

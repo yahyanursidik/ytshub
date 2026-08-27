@@ -141,6 +141,55 @@ export const officialUnits: OfficialUnit[] = [
 ];
 
 /**
+ * Pengumuman resmi yang sedang berlaku.
+ *
+ * ## Kenapa dimuat sekali lalu tidak pernah ditimpa
+ *
+ * Berbeda dari unit dan registry yang di-upsert setiap `db:seed`, pengumuman
+ * dimuat dengan `onConflictDoNothing`. Alasannya: unit dan alamat sistem adalah
+ * fakta kanonik yang memang harus dipulihkan seed, sedangkan pengumuman adalah
+ * konten redaksional dengan masa berlaku — pengurus akan menyuntingnya,
+ * menambah tanggal tutup, dan mencabutnya. Menimpanya setiap seed berarti
+ * mengembalikan teks lama dan menghidupkan kembali pengumuman yang sudah
+ * sengaja diakhiri.
+ *
+ * ## Yang TIDAK diisi
+ *
+ * `endAt` dibiarkan null. Pengurus menyampaikan bahwa SPMB sedang dibuka, bukan
+ * kapan ditutup — dan menebak tanggal tutup pendaftaran sekolah adalah persis
+ * jenis karangan yang dilarang 05-HALLMARK-ANTI-SLOP.md §7. Selama kosong,
+ * laporan kesehatan konten menandainya sebagai pengumuman tanpa tanggal
+ * berakhir, sehingga ia tidak bisa terlupakan diam-diam.
+ */
+export const officialAnnouncements = [
+  {
+    code: `${OFFICIAL_CODE_PREFIX}ANN-SPMB`,
+    slug: 'spmb',
+    sortOrder: 1,
+    title: 'SPMB Yayasan Tarbiyah Sunnah sedang dibuka',
+    summary:
+      'Pendaftaran murid baru dibuka serentak di unit pendidikan YTS. Setiap unit memakai portal pendaftarannya sendiri.',
+    description:
+      'Seleksi Penerimaan Murid Baru (SPMB) dibuka serentak di unit pendidikan Yayasan Tarbiyah Sunnah.\n\n' +
+      'Setiap unit menerima pendaftaran lewat portalnya masing-masing. Pilih portal sesuai jenjang yang dituju — pendaftaran di satu portal tidak berlaku untuk unit lain.\n\n' +
+      'Persyaratan, jadwal, dan ketentuan biaya diumumkan oleh unit penyelenggara melalui portal dan situs resminya.',
+    bannerText: 'SPMB sedang dibuka di unit pendidikan YTS.',
+    ctaLabel: 'Lihat portal pendaftaran',
+    /** Unit yayasan: pengumuman ini lintas unit, bukan milik satu sekolah. */
+    ownerUnitSlug: 'yayasan-tarbiyah-sunnah',
+    isHighlighted: true,
+    /**
+     * Dimundurkan ke awal hari agar pengumuman langsung berlaku begitu seed
+     * dijalankan, di zona waktu mana pun server berada.
+     */
+    startAt: new Date('2026-01-01T00:00:00.000Z'),
+    endAt: null,
+    /** Portal yang dituju, berurutan. Alamatnya ada di registry, bukan di sini. */
+    applicationSlugs: ['spmb-mahad-tahfidzul-quran', 'spmb-ts-lab-school'],
+  },
+];
+
+/**
  * Registry aplikasi, portal, dan situs — 06-CONTENT-MODEL-AND-CMS.md §8.
  *
  * SELURUH alamat resmi YTS ada di sini, termasuk situs utama tiap unit. Satu
@@ -210,7 +259,7 @@ export const officialApplications = [
     name: "Portal SPMB Ma'had Tahfidzul Qur'an",
     title: "Portal SPMB Ma'had Tahfidzul Qur'an",
     summary:
-      "Portal pendaftaran peserta didik baru Ma'had Tahfidzul Qur'an Tarbiyah Sunnah.",
+      "Portal pendaftaran murid baru Ma'had Tahfidzul Qur'an Tarbiyah Sunnah.",
     kind: 'portal' as const,
     ownerUnitSlug: 'mahad-tahfidzul-quran',
     url: 'https://hub.mahadtarbiyahsunnah.com/login/spmb',
@@ -223,7 +272,7 @@ export const officialApplications = [
     name: 'Portal SPMB TS Lab School',
     title: 'Portal SPMB TS Lab School',
     summary:
-      'Portal pendaftaran peserta didik baru TS Lab School: Preschool, Preschool HBL, dan Elementary.',
+      'Portal pendaftaran murid baru TS Lab School: Preschool, Preschool HBL, dan Elementary.',
     kind: 'portal' as const,
     ownerUnitSlug: 'ts-lab-school',
     url: 'https://hub.tslabschool.sch.id/spmb',

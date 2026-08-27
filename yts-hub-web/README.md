@@ -150,7 +150,8 @@ src/
 │   │   ├── directory-queries.ts  # listing & detail (Fase 3-4)
 │   │   ├── search-queries.ts     # pencarian terpadu & peringkatnya
 │   │   ├── search-terms.ts       # olah teks query — tanpa database, teruji unit
-│   │   └── search-analytics.ts   # log pencarian & feedback FAQ
+│   │   ├── search-analytics.ts   # log pencarian & feedback FAQ
+│   │   └── announcement-queries.ts # pengumuman berbatas waktu (SPMB dsb.)
 │   ├── observability/
 │   │   ├── errors.ts          # pencatatan kesalahan, digabung per masalah
 │   │   ├── usage.ts           # kunjungan & klik keluar, agregat harian
@@ -174,6 +175,36 @@ scripts/links.ts        # CLI pemeriksaan tautan eksternal (dijalankan terjadwal
 scripts/backup.ts       # CLI cadangan konten & verifikasinya
 tools/                  # screenshot, audit a11y, budget performa
 ```
+
+## Pengumuman berbatas waktu
+
+**Pengumuman seperti "SPMB sedang dibuka" adalah entity, bukan banner di kode.**
+Alasannya satu: banner yang ditulis di komponen menuntut pengembang untuk memasang
+DAN mencabutnya, dan yang kedua hampir selalu terlambat — sehingga situs mengumumkan
+pendaftaran yang sudah lama tutup. Sebagai entity, pengurus memasangnya sendiri lewat
+`/admin/pengumuman`, dan ia berhenti tampil sendiri saat `endAt` lewat.
+
+Masa berlakunya dihitung di SQL terhadap `now()`. Bukan kolom `is_active` yang menunggu
+dimatikan seseorang: kolom seperti itu akan tetap menyala berbulan-bulan setelah
+pendaftaran ditutup.
+
+**`endAt` boleh kosong, dan itu keadaan yang sah** — tanggal tutup pendaftaran sering
+belum ditetapkan saat dibuka, dan menebaknya adalah karangan (05-HALLMARK §7). Selama
+kosong, laporan kesehatan konten menandainya "tayang tanpa tanggal berakhir" sehingga
+tidak bisa terlupakan diam-diam.
+
+**Pengumuman tidak menyimpan URL sendiri.** Alamat portal ada di registry aplikasi;
+pengumuman hanya menautkan ke barisnya. Menyalin URL ke sini berarti dua tempat yang
+harus dijaga sama — kesalahan yang sudah diperbaiki pada Fase 6 — dan pemantau tautan
+akan memeriksa alamat yang sama dua kali.
+
+**Halaman detail sengaja tetap terbuka setelah masanya berakhir.** Tautan pengumuman
+beredar di grup dan pesan berantai jauh setelah pendaftaran tutup; halamannya menyatakan
+masanya sudah berakhir, yang jauh lebih menolong daripada 404 yang membuat orang mengira
+dirinya salah alamat.
+
+Beranda hanya menampilkan **satu** banner — yang `sortOrder`-nya terkecil di antara yang
+ditandai disorot. Dua banner sekaligus membuat keduanya terabaikan.
 
 ## Observability
 
