@@ -20,7 +20,23 @@ npm run dev                 # http://localhost:4321
 
 PostgreSQL lokal cukup untuk pengembangan; Neon dipakai untuk staging/production.
 Driver dipilih otomatis dari isi `DATABASE_URL` — tidak ada flag terpisah yang bisa
-bertentangan.
+bertentangan. Jalankan `npm run db:check` lebih dulu untuk memastikan koneksinya
+hidup; perintah itu menampilkan driver yang dipakai dan versi server, dengan
+password disamarkan.
+
+### Catatan koneksi Neon
+
+Neon menyediakan dua jalur, dan keduanya sering diblokir jaringan kantor/CI:
+
+| Jalur             | Port | Dipakai oleh                         |
+| ----------------- | ---- | ------------------------------------ |
+| Protokol Postgres | 5432 | `psql`, Drizzle Studio, GUI database |
+| HTTP serverless   | 443  | driver `neon-http` (aplikasi ini)    |
+
+Driver `neon-http` menghubungi `api.<region>.aws.neon.tech` lewat HTTPS. Bila
+jaringan Anda memakai allowlist egress, kedua host itu perlu diizinkan:
+`ep-*.<region>.aws.neon.tech` dan `api.<region>.aws.neon.tech`.
+`npm run db:check` akan menyebutkan host mana yang diblokir bila itu terjadi.
 
 Perintah lain:
 
@@ -154,12 +170,34 @@ palsu. Semua halaman ini `noindex`.
 | 6    | Integrasi & broken-link monitoring              | Belum   |
 | 7    | Observability & quality                         | Belum   |
 
+## Deployment (Netlify)
+
+`netlify.toml` sudah disiapkan: base `yts-hub-web`, publish `dist`, Node 22.
+
+Yang perlu diisi manual di **Site settings → Environment variables**:
+
+| Variabel       | Nilai                  |
+| -------------- | ---------------------- |
+| `DATABASE_URL` | Connection string Neon |
+
+Jangan pernah menulis connection string ke `netlify.toml` — file itu ikut ter-commit.
+
+Karena situs di-build statis, **konten baru terbit setelah rebuild**, bukan seketika
+setelah editor menekan publish. Pada Fase 5 ini perlu disambungkan: build hook Netlify
+yang dipanggil saat konten dipublikasikan.
+
 ## Catatan untuk Fase 3 dan seterusnya
 
 **Transaksi.** Driver Neon HTTP tidak mendukung transaksi interaktif. Fase 5
 (approve/publish lifecycle) kemungkinan membutuhkannya — pakai driver WebSocket Neon
 untuk jalur itu, jangan berasumsi transaksi jalan hanya karena lolos di Postgres lokal.
 Catatan ini juga ada di `src/server/db/client.ts`.
+
+**Test integrasi butuh database terpisah.** `DATABASE_URL_TEST` sengaja bukan
+`DATABASE_URL`: isi database test DIHAPUS setiap kali test berjalan. Untuk Neon,
+buat _branch_ khusus test dan pakai connection string branch itu — jangan pernah
+mengarahkannya ke database utama. Bila kosong, test integrasi di-skip dan test
+lain tetap jalan.
 
 **Search (Fase 4).** Skema sudah menyiapkan `faqs.keywords` (array) untuk sinyal
 ranking alias di 07-SEARCH §4. Kolom `tsvector` dan index GIN ditambahkan pada Fase 4
