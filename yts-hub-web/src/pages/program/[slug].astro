@@ -2,10 +2,11 @@
 /** Detail program. Isi pada Fase 3. */
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { activePrograms } from '@/data/fixtures';
+import { getProgramSlugs } from '@/server/content/public-queries';
 
-export function getStaticPaths() {
-  return activePrograms.map((program) => ({
+export async function getStaticPaths() {
+  const programs = await getProgramSlugs();
+  return programs.map((program) => ({
     params: { slug: program.slug },
     props: { title: program.title, summary: program.summary },
   }));

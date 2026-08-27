@@ -23,7 +23,7 @@ Mengikuti `yts-hub-md/10-DEVELOPMENT-PLAN.md`:
 | ---- | ----------------------------------------------- | ------- |
 | 0    | Repo, tooling, design tokens, base layout       | Selesai |
 | 1    | Landing page + shell, typed mock data           | Selesai |
-| 2    | Core registry & database                        | Berjalan |
+| 2    | Core registry & database                        | Selesai |
 | 3    | Public directory routes + detail pages          | Belum   |
 | 4    | FAQ center & unified search                     | Belum   |
 | 5    | Admin & governance                              | Belum   |

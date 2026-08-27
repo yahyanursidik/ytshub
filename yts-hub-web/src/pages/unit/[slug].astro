@@ -2,10 +2,11 @@
 /** Detail unit. Isi pada Fase 3. */
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { featuredUnits } from '@/data/fixtures';
+import { getUnitSlugs } from '@/server/content/public-queries';
 
-export function getStaticPaths() {
-  return featuredUnits.map((unit) => ({
+export async function getStaticPaths() {
+  const units = await getUnitSlugs();
+  return units.map((unit) => ({
     params: { slug: unit.slug },
     props: { title: unit.title, summary: unit.summary },
   }));

@@ -17,9 +17,9 @@ export default [
     },
   },
   {
-    // Script audit visual/a11y: berjalan di Node tapi mengeksekusi kode di dalam browser,
-    // dan memang berkomunikasi lewat stdout.
-    files: ['tools/**/*.mjs'],
+    // Script CLI (tools/ dan scripts/): berjalan di Node, sebagian mengeksekusi kode
+    // di dalam browser, dan memang berkomunikasi lewat stdout.
+    files: ['tools/**/*.mjs', 'scripts/**/*.ts'],
     languageOptions: {
       globals: {
         console: 'readonly',

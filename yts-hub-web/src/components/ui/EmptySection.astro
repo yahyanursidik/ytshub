@@ -1,0 +1,44 @@
+---
+/**
+ * Empty state untuk section landing page.
+ *
+ * "Definition of Done" di 10-DEVELOPMENT-PLAN.md §12 mensyaratkan loading/error/empty
+ * state. Sejak Fase 2 isi halaman berasal dari database, jadi section bisa kosong
+ * secara sah — misalnya belum ada layanan yang ditandai populer.
+ *
+ * Yang ditampilkan adalah keadaan sebenarnya, bukan konten pengganti yang dikarang
+ * (05-HALLMARK-ANTI-SLOP.md §7). `hint` hanya muncul di mode dev karena isinya
+ * instruksi untuk pengelola, bukan informasi untuk publik.
+ */
+interface Props {
+  message: string;
+  hint?: string;
+}
+
+const { message, hint } = Astro.props;
+const showHint = Boolean(hint) && import.meta.env.DEV;
+---
+
+<p class="empty" role="status">
+  <span>{message}</span>
+  {showHint && <span class="empty__hint">{hint}</span>}
+</p>
+
+<style>
+  .empty {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-6);
+    background-color: var(--color-surface);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-card);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .empty__hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    font-style: italic;
+  }
+</style>

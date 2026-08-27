@@ -5,7 +5,14 @@
  * (05-HALLMARK-ANTI-SLOP.md §6 — dense list lebih tepat daripada card bila kontennya list).
  */
 import Icon from '@/components/ui/Icon.astro';
-import { featuredUnits } from '@/data/fixtures';
+import EmptySection from '@/components/ui/EmptySection.astro';
+import type { PublicUnit } from '@/server/content/public-queries';
+
+interface Props {
+  units: PublicUnit[];
+}
+
+const { units } = Astro.props;
 
 const kindLabel: Record<string, string> = {
   pendidikan: 'Pendidikan',
@@ -31,9 +38,11 @@ const kindLabel: Record<string, string> = {
       </a>
     </div>
 
+    {units.length === 0 && <EmptySection message="Belum ada unit yang dipublikasikan." />}
+
     <ul class="explore__list">
       {
-        featuredUnits.map((unit) => (
+        units.map((unit) => (
           <li>
             <a href={`/unit/${unit.slug}`}>
               <span class="explore__row">

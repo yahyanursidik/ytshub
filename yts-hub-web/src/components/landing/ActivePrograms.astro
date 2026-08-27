@@ -5,7 +5,14 @@
  * Status ditandai teks + titik, tidak hanya warna (09-A11Y §3).
  */
 import Icon from '@/components/ui/Icon.astro';
-import { activePrograms } from '@/data/fixtures';
+import EmptySection from '@/components/ui/EmptySection.astro';
+import type { PublicProgram } from '@/server/content/public-queries';
+
+interface Props {
+  programs: PublicProgram[];
+}
+
+const { programs } = Astro.props;
 
 const statusLabel: Record<string, string> = {
   berjalan: 'Berjalan',
@@ -13,8 +20,28 @@ const statusLabel: Record<string, string> = {
   selesai: 'Selesai',
 };
 
-const [lead, ...rest] = activePrograms;
+// Komposisi asimetris: program pertama menjadi lead, sisanya baris ringkas.
+const [lead, ...rest] = programs;
 ---
+
+{
+  !lead && (
+    <section class="section" aria-labelledby="program-title">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-head__intro">
+            <span class="eyebrow">Program</span>
+            <h2 id="program-title">Program yang sedang berjalan</h2>
+          </div>
+        </div>
+        <EmptySection
+          message="Belum ada program yang ditandai untuk ditampilkan di beranda."
+          hint="Tandai program sebagai featured di admin agar tampil di sini."
+        />
+      </div>
+    </section>
+  )
+}
 
 {
   lead && (

@@ -1,7 +1,7 @@
 ---
 /**
- * Penanda bahwa konten yang tampil adalah fixture pengembangan, bukan data resmi YTS.
- * Wajib ada selama Fase 1 (05-HALLMARK-ANTI-SLOP.md §7 — no fake data exposed as real).
+ * Penanda bahwa konten yang tampil berasal dari seed pengembangan, bukan data resmi YTS.
+ * 05-HALLMARK-ANTI-SLOP.md §7 — no fake data exposed as real.
  * Otomatis hilang pada production build.
  */
 const show = import.meta.env.DEV;
@@ -11,8 +11,8 @@ const show = import.meta.env.DEV;
   show && (
     <div class="dev-notice" role="note">
       <p>
-        <strong>Data contoh.</strong> Isi halaman ini adalah fixture pengembangan, bukan informasi
-        resmi Yayasan Tarbiyah Sunnah. Diganti dengan data asli pada Fase 2.
+        <strong>Data contoh.</strong> Isi halaman ini berasal dari seed pengembangan
+        (bertanda <code>DEV-</code>), bukan informasi resmi Yayasan Tarbiyah Sunnah.
       </p>
     </div>
   )
@@ -34,5 +34,9 @@ const show = import.meta.env.DEV;
 
   .dev-notice strong {
     color: #e6c98a;
+  }
+
+  .dev-notice code {
+    font-size: 0.95em;
   }
 </style>

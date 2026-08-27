@@ -5,10 +5,17 @@
  * FAQ di landing page hanya highlight; entity sebenarnya ada di FAQ Center (07-SEARCH §8).
  */
 import Icon from '@/components/ui/Icon.astro';
+import EmptySection from '@/components/ui/EmptySection.astro';
 import FaqAccordion from '@/components/landing/FaqAccordion.astro';
-import { popularFaqs } from '@/data/fixtures';
+import type { PublicFaq } from '@/server/content/public-queries';
 
-const items = popularFaqs.map((faq) => ({
+interface Props {
+  faqs: PublicFaq[];
+}
+
+const { faqs } = Astro.props;
+
+const items = faqs.map((faq) => ({
   id: faq.id,
   slug: faq.slug,
   question: faq.question,
@@ -29,7 +36,14 @@ const items = popularFaqs.map((faq) => ({
     </div>
 
     <div class="faq__body">
-      <FaqAccordion items={items} />
+      {items.length === 0 ? (
+        <EmptySection
+          message="Belum ada FAQ yang ditandai populer."
+          hint="Tandai FAQ sebagai populer di admin agar tampil di sini."
+        />
+      ) : (
+        <FaqAccordion items={items} />
+      )}
     </div>
   </div>
 </section>

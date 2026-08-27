@@ -2,10 +2,11 @@
 /** Detail FAQ. Isi pada Fase 4 (07-SEARCH-AND-FAQ.md §9). */
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { popularFaqs } from '@/data/fixtures';
+import { getFaqSlugs } from '@/server/content/public-queries';
 
-export function getStaticPaths() {
-  return popularFaqs.map((faq) => ({
+export async function getStaticPaths() {
+  const faqs = await getFaqSlugs();
+  return faqs.map((faq) => ({
     params: { slug: faq.slug },
     props: { title: faq.question, summary: faq.summary },
   }));

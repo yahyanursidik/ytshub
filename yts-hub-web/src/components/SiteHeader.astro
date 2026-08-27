@@ -5,16 +5,7 @@
  * Menu mobile memakai panel dengan aria-expanded, bukan library.
  */
 import Icon from '@/components/ui/Icon.astro';
-
-const nav = [
-  { label: 'Beranda', href: '/' },
-  { label: 'Unit', href: '/unit' },
-  { label: 'Program', href: '/program' },
-  { label: 'Layanan', href: '/layanan' },
-  { label: 'Event', href: '/event' },
-  { label: 'FAQ', href: '/faq' },
-  { label: 'Hubungi Kami', href: '/hubungi-kami' },
-];
+import { primaryNav as nav } from '@/config/navigation';
 
 const path = Astro.url.pathname;
 const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));

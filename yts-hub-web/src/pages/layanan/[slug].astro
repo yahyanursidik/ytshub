@@ -1,11 +1,12 @@
 ---
-/** Detail layanan — struktur route sesuai 02-INFORMATION-ARCHITECTURE.md §8. Isi pada Fase 3. */
+/** Detail layanan — route sesuai 02-INFORMATION-ARCHITECTURE.md §8. Isi pada Fase 3. */
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { popularServices } from '@/data/fixtures';
+import { getServiceSlugs } from '@/server/content/public-queries';
 
-export function getStaticPaths() {
-  return popularServices.map((service) => ({
+export async function getStaticPaths() {
+  const services = await getServiceSlugs();
+  return services.map((service) => ({
     params: { slug: service.slug },
     props: { title: service.title, summary: service.summary },
   }));

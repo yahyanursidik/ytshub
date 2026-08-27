@@ -3,6 +3,10 @@
  * Beranda — narrative sesuai 03-LANDING-PAGE-UIUX.md §2:
  * header → hero/search → quick access → layanan populer → jelajahi YTS →
  * program aktif → FAQ → aplikasi & website → help CTA → footer.
+ *
+ * Halaman ini satu-satunya tempat yang mengambil data; komponen section menerima
+ * hasilnya lewat props dan tetap murni presentasional. Query berjalan sekali saat
+ * build, jadi HTML yang dikirim ke pengguna tetap statis (09-A11Y §5 HTML-first).
  */
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import Hero from '@/components/landing/Hero.astro';
@@ -13,6 +17,22 @@ import ActivePrograms from '@/components/landing/ActivePrograms.astro';
 import FaqSection from '@/components/landing/FaqSection.astro';
 import AppsAndSites from '@/components/landing/AppsAndSites.astro';
 import HelpCta from '@/components/landing/HelpCta.astro';
+
+import {
+  getFeaturedPrograms,
+  getFeaturedUnits,
+  getPopularFaqs,
+  getPopularServices,
+  getPublicApplications,
+} from '@/server/content/public-queries';
+
+const [services, units, programs, faqs, applications] = await Promise.all([
+  getPopularServices(5),
+  getFeaturedUnits(4),
+  getFeaturedPrograms(3),
+  getPopularFaqs(4),
+  getPublicApplications(3),
+]);
 ---
 
 <BaseLayout
@@ -22,10 +42,10 @@ import HelpCta from '@/components/landing/HelpCta.astro';
 >
   <Hero />
   <QuickAccess />
-  <PopularServices />
-  <ExploreYts />
-  <ActivePrograms />
-  <FaqSection />
-  <AppsAndSites />
+  <PopularServices services={services} />
+  <ExploreYts units={units} />
+  <ActivePrograms programs={programs} />
+  <FaqSection faqs={faqs} />
+  <AppsAndSites applications={applications} />
   <HelpCta />
 </BaseLayout>

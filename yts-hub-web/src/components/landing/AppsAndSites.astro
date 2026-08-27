@@ -5,7 +5,14 @@
  * Tidak menampilkan informasi teknis internal.
  */
 import Icon from '@/components/ui/Icon.astro';
-import { appRegistry } from '@/data/fixtures';
+import EmptySection from '@/components/ui/EmptySection.astro';
+import type { PublicApplication } from '@/server/content/public-queries';
+
+interface Props {
+  applications: PublicApplication[];
+}
+
+const { applications } = Astro.props;
 
 const kindLabel: Record<string, string> = {
   aplikasi: 'Aplikasi',
@@ -31,9 +38,13 @@ const kindLabel: Record<string, string> = {
       </a>
     </div>
 
+    {applications.length === 0 && (
+      <EmptySection message="Belum ada aplikasi atau website yang terdaftar." />
+    )}
+
     <ul class="apps__list">
       {
-        appRegistry.map((app) => (
+        applications.map((app) => (
           <li class="app-row">
             <div class="app-row__main">
               <p class="app-row__kind">{kindLabel[app.kind] ?? app.kind}</p>
