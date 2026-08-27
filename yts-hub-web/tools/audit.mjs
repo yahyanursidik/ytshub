@@ -34,8 +34,24 @@ const PAGES = [
   '/cari',
   '/cari?q=donasi',
   '/cari?q=zzzqqqwww',
+  '/admin/masuk',
   '/404.html',
 ];
+
+/**
+ * Halaman admin yang membutuhkan sesi (Fase 5).
+ *
+ * Hanya diperiksa bila kredensial tersedia lewat environment. Tanpa itu bagian
+ * ini dilewati dengan pesan yang jelas — audit yang diam-diam memeriksa lebih
+ * sedikit halaman lebih berbahaya daripada audit yang mengatakan apa yang tidak
+ * diperiksanya.
+ *
+ *   YTS_AUDIT_EMAIL=admin@... YTS_AUDIT_PASSWORD=... npm run audit:a11y
+ */
+const ADMIN_PAGES = ['/admin', '/admin/layanan', '/admin/faq', '/admin/pengguna'];
+
+const auditEmail = process.env.YTS_AUDIT_EMAIL;
+const auditPassword = process.env.YTS_AUDIT_PASSWORD;
 
 const findings = [];
 const report = (label, items) => {
@@ -146,6 +162,12 @@ for (const path of PAGES) {
       // yang memang tidak ada. Jalan keluarnya disediakan lewat tautan, bukan
       // breadcrumb (01-PRODUCT-BRIEF §7 "no dead ends").
       if (p.startsWith('/404')) return [];
+      // Admin dikecualikan dengan alasan berbeda: breadcrumb di 02-IA §6 adalah
+      // aturan untuk halaman konten publik, tempat pengunjung datang dari mesin
+      // pencari dan perlu tahu posisinya. Admin punya navigasinya sendiri di
+      // bilah atas, dan halaman masuk memang titik awal — tidak ada jalur di
+      // atasnya untuk ditampilkan.
+      if (p.startsWith('/admin')) return [];
       const depth = p
         .split('?')[0]
         .replace(/\/$|\.html$/, '')
@@ -203,6 +225,86 @@ for (const path of PAGES) {
           ),
     ),
   );
+}
+
+// ------------------------------------------------------------------ admin
+if (auditEmail && auditPassword) {
+  const adminCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await adminCtx.addInitScript({ content: DEV_TOOLBAR_FILTER });
+  const admin = await adminCtx.newPage();
+
+  await admin.goto(`${BASE}/admin/masuk`, { waitUntil: 'networkidle' });
+  await admin.fill('#email', auditEmail);
+  await admin.fill('#password', auditPassword);
+  await Promise.all([admin.waitForNavigation({ waitUntil: 'networkidle' }), admin.click('button[type="submit"]')]);
+
+  if (admin.url().includes('/admin/masuk')) {
+    console.log('\nX Gagal masuk ke admin — kredensial YTS_AUDIT_* ditolak.');
+    findings.push({ label: 'Masuk admin untuk audit', items: ['kredensial ditolak'] });
+  } else {
+    for (const path of ADMIN_PAGES) {
+      console.log(`\n${path} (admin)`);
+      await admin.goto(BASE + path, { waitUntil: 'networkidle' });
+
+      report(
+        'Urutan heading logis (tidak melompat lebih dari satu level)',
+        await admin.evaluate(() => {
+          const levels = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]
+            .filter((el) => window.__bukanDevToolbar(el))
+            .map((el) => ({ level: Number(el.tagName[1]), text: el.textContent.trim().slice(0, 40) }));
+          const problems = [];
+          if (levels.filter((l) => l.level === 1).length !== 1) {
+            problems.push(`jumlah <h1> = ${levels.filter((l) => l.level === 1).length}, seharusnya 1`);
+          }
+          for (let i = 1; i < levels.length; i += 1) {
+            if (levels[i].level - levels[i - 1].level > 1) {
+              problems.push(`lompat h${levels[i - 1].level} -> h${levels[i].level}: "${levels[i].text}"`);
+            }
+          }
+          return problems;
+        }),
+      );
+
+      report(
+        'Setiap control punya accessible name',
+        await admin.$$eval('button, a', (els) =>
+          els
+            .filter((el) => window.__bukanDevToolbar(el))
+            .filter(
+              (el) =>
+                !(el.innerText || '').trim() &&
+                !el.getAttribute('aria-label') &&
+                !el.getAttribute('aria-labelledby') &&
+                !el.querySelector('.visually-hidden'),
+            )
+            .map((el) => el.outerHTML.slice(0, 80)),
+        ),
+      );
+
+      report(
+        'Setiap input punya label',
+        await admin.$$eval('input, select, textarea', (els) =>
+          els
+            .filter((el) => window.__bukanDevToolbar(el))
+            .filter((el) => el.type !== 'hidden')
+            .filter(
+              (el) =>
+                !el.getAttribute('aria-label') &&
+                !(el.id && document.querySelector(`label[for="${el.id}"]`)) &&
+                !el.closest('label'),
+            )
+            .map((el) => el.outerHTML.slice(0, 80)),
+        ),
+      );
+
+      report(
+        'Skip-to-content tersedia',
+        (await admin.$('a.skip-link')) ? [] : ['tidak ada .skip-link'],
+      );
+    }
+  }
+} else {
+  console.log('\n(Halaman admin dilewati — setel YTS_AUDIT_EMAIL dan YTS_AUDIT_PASSWORD untuk ikut memeriksanya.)');
 }
 
 await browser.close();

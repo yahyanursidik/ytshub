@@ -1,0 +1,120 @@
+---
+/**
+ * Shell halaman admin.
+ *
+ * Sengaja TIDAK memakai BaseLayout: admin bukan versi lain dari situs publik.
+ * Ia punya navigasi berbeda, kepadatan berbeda, dan tidak boleh membawa serta
+ * header publik yang mengundang orang keluar ke halaman pengunjung di tengah
+ * pekerjaan. Yang dibagi hanyalah token desain — warna, tipografi, dan spacing
+ * tetap satu sumber (04-DESIGN-SYSTEM.md).
+ *
+ * Seluruh halaman admin `noindex`: tidak ada yang boleh masuk indeks mesin
+ * pencari, termasuk halaman masuknya.
+ */
+import '@fontsource-variable/inter';
+import '@fontsource-variable/source-serif-4';
+import '@/styles/tokens.css';
+import '@/styles/base.css';
+import '@/styles/admin.css';
+
+import { ENTITIES, ENTITY_ORDER } from '@/server/admin/entities';
+import { roleFor, type Actor } from '@/server/auth/roles';
+
+interface Props {
+  title: string;
+  actor?: Actor;
+  /** Halaman masuk memakai kerangka telanjang tanpa navigasi. */
+  bare?: boolean;
+}
+
+const { title, actor, bare = false } = Astro.props;
+
+const path = Astro.url.pathname;
+const isActive = (href: string) =>
+  href === '/admin' ? path === '/admin' : path.startsWith(href);
+
+/** Peran tertinggi di mana pun — hanya untuk ditampilkan, bukan untuk memutuskan izin. */
+const highestRole = actor
+  ? (actor.assignments
+      .map((assignment) => assignment.role)
+      .sort(
+        (a, b) =>
+          ['viewer', 'editor', 'approver', 'admin'].indexOf(b) -
+          ['viewer', 'editor', 'approver', 'admin'].indexOf(a),
+      )[0] ?? null)
+  : null;
+
+const canManageUsers = actor ? roleFor(actor, null) === 'admin' : false;
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Admin YTS Hub</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#F7F5EF" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="admin">
+    <a class="skip-link" href="#konten">Lompat ke konten utama</a>
+
+    {
+      !bare && actor && (
+        <header class="admin-bar">
+          <div class="admin-bar__inner">
+            <a class="admin-bar__brand" href="/admin">
+              <span>YTS Hub</span>
+              <span class="admin-bar__tag">Admin</span>
+            </a>
+
+            <nav class="admin-nav" aria-label="Navigasi admin">
+              <ul>
+                <li>
+                  <a href="/admin" aria-current={isActive('/admin') ? 'page' : undefined}>
+                    Dasbor
+                  </a>
+                </li>
+                {ENTITY_ORDER.map((key) => (
+                  <li>
+                    <a
+                      href={`/admin/${ENTITIES[key].slug}`}
+                      aria-current={isActive(`/admin/${ENTITIES[key].slug}`) ? 'page' : undefined}
+                    >
+                      {ENTITIES[key].labelPlural}
+                    </a>
+                  </li>
+                ))}
+                {canManageUsers && (
+                  <li>
+                    <a
+                      href="/admin/pengguna"
+                      aria-current={isActive('/admin/pengguna') ? 'page' : undefined}
+                    >
+                      Pengguna
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </nav>
+
+            <div class="admin-bar__user">
+              <span class="admin-bar__name">
+                {actor.name}
+                {highestRole && <span class="admin-bar__role">{highestRole}</span>}
+              </span>
+              <form method="post" action="/admin/keluar">
+                <button type="submit" class="admin-bar__signout">Keluar</button>
+              </form>
+            </div>
+          </div>
+        </header>
+      )
+    }
+
+    <main id="konten" class={bare ? 'admin-main admin-main--bare' : 'admin-main'}>
+      <slot />
+    </main>
+  </body>
+</html>

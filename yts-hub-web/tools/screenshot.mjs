@@ -65,6 +65,17 @@ const shots = [
   },
 ];
 
+/**
+ * Halaman admin (Fase 5) hanya dipotret bila kredensial tersedia:
+ *   YTS_AUDIT_EMAIL=... YTS_AUDIT_PASSWORD=... npm run shot
+ */
+const adminShots = [
+  { name: 'admin-dasbor', width: 1440, height: 900, path: '/admin' },
+  { name: 'admin-daftar', width: 1440, height: 900, path: '/admin/layanan' },
+  { name: 'admin-pengguna', width: 1440, height: 900, path: '/admin/pengguna' },
+  { name: 'admin-dasbor-mobile', width: 390, height: 844, mobile: true, path: '/admin' },
+];
+
 await mkdir(OUT, { recursive: true });
 
 const browser = await chromium.launch({
@@ -85,6 +96,37 @@ for (const shot of shots) {
   await page.screenshot({ path: `${OUT}/${shot.name}.png`, fullPage: shot.full ?? true });
   await context.close();
   console.log(`✓ ${OUT}/${shot.name}.png`);
+}
+
+const adminEmail = process.env.YTS_AUDIT_EMAIL;
+const adminPassword = process.env.YTS_AUDIT_PASSWORD;
+
+if (adminEmail && adminPassword) {
+  for (const shot of adminShots) {
+    const context = await browser.newContext({
+      viewport: { width: shot.width, height: shot.height },
+      deviceScaleFactor: 2,
+      isMobile: shot.mobile ?? false,
+    });
+    const page = await context.newPage();
+
+    await page.goto(`${BASE}/admin/masuk`, { waitUntil: 'networkidle' });
+    await page.fill('#email', adminEmail);
+    await page.fill('#password', adminPassword);
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle' }),
+      page.click('button[type="submit"]'),
+    ]);
+
+    await page.goto(BASE + shot.path, { waitUntil: 'networkidle' });
+    await page.addStyleTag({ content: HIDE_DEV_TOOLBAR });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT}/${shot.name}.png`, fullPage: shot.full ?? true });
+    await context.close();
+    console.log(`✓ ${OUT}/${shot.name}.png`);
+  }
+} else {
+  console.log('(Halaman admin dilewati — setel YTS_AUDIT_EMAIL dan YTS_AUDIT_PASSWORD.)');
 }
 
 await browser.close();

@@ -1,0 +1,126 @@
+---
+/**
+ * Dasbor admin.
+ *
+ * Menjawab "apa yang perlu saya kerjakan sekarang", bukan "berapa banyak konten
+ * yang kita punya". Angka ringkasan ada di bawah, setelah antrean kerjanya —
+ * urutannya sengaja begitu: yang menuntut tindakan lebih dulu.
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import WorkQueue from '@/components/admin/WorkQueue.astro';
+import { buildDashboard } from '@/server/admin/dashboard';
+import { roleFor } from '@/server/auth/roles';
+
+// Middleware menjamin keberadaannya; pemeriksaan ini yang membuat typecheck
+// ikut menjaganya bila suatu saat middleware-nya berubah.
+const actor = Astro.locals.actor;
+if (!actor) return Astro.redirect('/admin/masuk', 302);
+
+const dashboard = await buildDashboard(actor);
+
+const isApprover = actor.assignments.some(
+  (assignment) => assignment.role === 'approver' || assignment.role === 'admin',
+);
+
+const scope =
+  roleFor(actor, null) !== null
+    ? 'seluruh unit'
+    : `unit yang Anda kelola (${actor.assignments.length})`;
+
+const COUNT_LABELS: [keyof typeof dashboard.counts, string][] = [
+  ['draft', 'Draft'],
+  ['in_review', 'Menunggu tinjauan'],
+  ['approved', 'Disetujui'],
+  ['published', 'Terbit'],
+  ['needs_review', 'Perlu ditinjau'],
+  ['archived', 'Arsip'],
+];
+---
+
+<AdminLayout title="Dasbor" actor={actor}>
+  <div class="admin-head">
+    <div>
+      <h1>Halo, {actor.name.split(' ')[0]}</h1>
+      <p>Menampilkan konten dari {scope}.</p>
+    </div>
+  </div>
+
+  <WorkQueue
+    title="Menunggu tinjauan"
+    description={isApprover
+      ? 'Konten yang sudah dikirim penyunting dan menunggu keputusan Anda.'
+      : 'Konten yang Anda kirim dan sedang menunggu keputusan approver.'}
+    items={dashboard.awaitingReview}
+    emptyMessage="Tidak ada yang menunggu tinjauan."
+  />
+
+  <WorkQueue
+    title="Jatuh tempo ditinjau ulang"
+    description="Konten terbit yang sudah melewati jadwal tinjauannya. Isinya masih tampil di halaman publik — periksa apakah masih benar."
+    items={dashboard.overdue}
+    emptyMessage="Tidak ada konten yang terlewat jadwal tinjauannya."
+    showDue
+  />
+
+  <WorkQueue
+    title="Akan jatuh tempo"
+    description="Jadwal tinjauannya kurang dari dua pekan lagi."
+    items={dashboard.dueSoon}
+    emptyMessage="Tidak ada yang akan jatuh tempo dalam dua pekan ke depan."
+    showDue
+  />
+
+  <WorkQueue
+    title="Draft terlama"
+    description="Draft yang paling lama tidak disentuh."
+    items={dashboard.drafts}
+    emptyMessage="Tidak ada draft yang tertinggal."
+  />
+
+  <section class="admin-panel">
+    <h2>Ringkasan status</h2>
+    <ul class="counts">
+      {
+        COUNT_LABELS.map(([key, label]) => (
+          <li>
+            <span class="counts__n">{dashboard.counts[key]}</span>
+            <span class="counts__label">{label}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</AdminLayout>
+
+<style>
+  .counts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  .counts li {
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-control);
+  }
+
+  .counts__n {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  .counts__label {
+    display: block;
+    margin-top: 2px;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+</style>

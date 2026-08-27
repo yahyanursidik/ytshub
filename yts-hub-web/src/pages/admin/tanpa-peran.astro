@@ -1,0 +1,66 @@
+---
+/**
+ * Akun sah, tetapi belum diberi peran apa pun.
+ *
+ * Dipisahkan dari halaman masuk dengan sengaja. Mengembalikan orang ke form
+ * masuk untuk masalah yang bukan kata sandi akan membuatnya mencoba berulang
+ * kali dan menyimpulkan akunnya rusak. Yang perlu ia tahu justru sebaliknya:
+ * masuknya berhasil, yang kurang adalah penugasan dari admin.
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { getActor } from '@/server/auth/session';
+
+const actor = await getActor(Astro.request);
+if (!actor) return Astro.redirect('/admin/masuk', 302);
+
+// Sudah punya peran — tidak ada alasan berada di halaman ini.
+if (actor.assignments.length > 0) return Astro.redirect('/admin', 302);
+---
+
+<AdminLayout title="Belum ada peran" bare>
+  <div class="no-role">
+    <h1>Akun Anda belum diberi peran</h1>
+    <p>
+      Anda berhasil masuk sebagai <strong>{actor.email}</strong>, tetapi belum ditugaskan pada unit
+      mana pun. Sampai admin YTS Hub menetapkannya, tidak ada konten yang bisa Anda lihat atau ubah.
+    </p>
+    <p class="no-role__next">
+      Hubungi admin YTS Hub dan sebutkan alamat email di atas beserta unit tempat Anda bertugas.
+    </p>
+    <form method="post" action="/admin/keluar">
+      <button type="submit" class="btn btn--secondary">Keluar</button>
+    </form>
+  </div>
+</AdminLayout>
+
+<style>
+  .no-role {
+    width: 100%;
+    max-width: 32rem;
+    padding: var(--space-8);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+  }
+
+  .no-role h1 {
+    font-size: var(--text-h3);
+  }
+
+  .no-role p {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .no-role__next {
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .no-role form {
+    margin-top: var(--space-6);
+  }
+</style>

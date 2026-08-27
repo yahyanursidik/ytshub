@@ -1,0 +1,272 @@
+---
+/**
+ * Pengelolaan pengguna & peran. Hanya untuk admin organisasi.
+ *
+ * Halaman ini ada supaya penugasan peran tidak menuntut akses shell — di
+ * yayasan, orang yang tahu siapa bertugas di unit mana biasanya bukan orang
+ * yang punya akses server.
+ *
+ * Yang TIDAK ada di sini: pembuatan akun dan penyetelan ulang kata sandi.
+ * Keduanya tetap lewat `npm run admin:user`, karena tanpa infrastruktur surat
+ * kata sandi hanya bisa disampaikan dengan menampilkannya di layar — dan layar
+ * peramban yang bisa terbuka di ruang bersama adalah tempat yang salah untuk itu.
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { GovernanceError } from '@/server/admin/governance';
+import { assignRole, assignableUnits, listUsers, removeRole, setUserActive } from '@/server/admin/users';
+import { can, type Role } from '@/server/auth/roles';
+
+const actor = Astro.locals.actor;
+if (!actor) return Astro.redirect('/admin/masuk', 302);
+
+// Lapisan kedua setelah middleware: middleware hanya tahu "punya peran",
+// halaman ini menuntut peran admin organisasi.
+if (!can(actor, 'manage_users', null).allowed) {
+  Astro.response.status = 403;
+}
+
+const allowed = can(actor, 'manage_users', null).allowed;
+
+const ROLES: Role[] = ['viewer', 'editor', 'approver', 'admin'];
+
+let error: string | null = null;
+let success: string | null = null;
+
+if (allowed && Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  try {
+    if (intent === 'tetapkan') {
+      const userId = String(form.get('userId') ?? '');
+      const role = String(form.get('role') ?? '') as Role;
+      const rawUnit = String(form.get('unitId') ?? '');
+      if (!ROLES.includes(role)) throw new GovernanceError('Peran tidak dikenal.', 'invalid');
+      await assignRole(actor, userId, role, rawUnit === '' ? null : rawUnit);
+      success = 'Peran diperbarui.';
+    } else if (intent === 'hapus-peran') {
+      await removeRole(actor, String(form.get('roleId') ?? ''));
+      success = 'Peran dicabut.';
+    } else if (intent === 'aktif') {
+      const userId = String(form.get('userId') ?? '');
+      const isActive = String(form.get('isActive') ?? '') === 'true';
+      await setUserActive(actor, userId, isActive);
+      success = isActive ? 'Akun diaktifkan.' : 'Akun dinonaktifkan dan sesinya diakhiri.';
+    }
+  } catch (caught) {
+    if (caught instanceof GovernanceError) {
+      error = caught.message;
+    } else {
+      console.error('[admin] pengelolaan pengguna gagal:', caught);
+      error = 'Sedang ada gangguan di sisi kami. Perubahan tidak disimpan.';
+    }
+  }
+}
+
+const people = allowed ? await listUsers(actor) : [];
+const unitOptions = allowed ? await assignableUnits(actor) : [];
+
+const formatDate = (value: Date | string) =>
+  new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(value));
+---
+
+<AdminLayout title="Pengguna" actor={actor}>
+  {
+    !allowed ? (
+      <div class="forbidden">
+        <h1>Halaman ini hanya untuk admin</h1>
+        <p>Mengelola pengguna dan peran membutuhkan peran admin tingkat organisasi.</p>
+      </div>
+    ) : (
+      <>
+        <div class="admin-head">
+          <div>
+            <h1>Pengguna</h1>
+            <p>
+              {people.length} akun. Pembuatan akun dan penyetelan ulang kata sandi dilakukan lewat
+              perintah <code>npm run admin:user</code> — belum lewat halaman ini, karena belum ada
+              infrastruktur surat untuk menyampaikan kata sandi dengan aman.
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <p class="notice notice--error" role="alert">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p class="notice notice--ok" role="status">
+            {success}
+          </p>
+        )}
+
+        {people.map((person) => (
+          <section class="admin-panel person">
+            <div class="person__head">
+              <div>
+                <h2 class="person__name">{person.name}</h2>
+                <p class="person__email">
+                  {person.email} · bergabung {formatDate(person.createdAt)}
+                  {!person.isActive && <span class="person__off"> · NONAKTIF</span>}
+                </p>
+              </div>
+              <form method="post">
+                <input type="hidden" name="intent" value="aktif" />
+                <input type="hidden" name="userId" value={person.id} />
+                <input type="hidden" name="isActive" value={person.isActive ? 'false' : 'true'} />
+                <button type="submit" class="btn btn--secondary">
+                  {person.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                </button>
+              </form>
+            </div>
+
+            {person.roles.length === 0 ? (
+              <p class="person__none">
+                Belum punya peran — tidak bisa melihat konten apa pun sampai ditetapkan di bawah.
+              </p>
+            ) : (
+              <ul class="person__roles">
+                {person.roles.map((assignment) => (
+                  <li>
+                    <span>
+                      <strong>{assignment.role}</strong>
+                      {assignment.unitName ? ` di ${assignment.unitName}` : ' — seluruh organisasi'}
+                    </span>
+                    <form method="post">
+                      <input type="hidden" name="intent" value="hapus-peran" />
+                      <input type="hidden" name="roleId" value={assignment.id} />
+                      <button type="submit" class="person__remove">
+                        Cabut
+                        <span class="visually-hidden">
+                          peran {assignment.role}
+                          {assignment.unitName ? ` di ${assignment.unitName}` : ''} dari {person.name}
+                        </span>
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <form method="post" class="person__assign">
+              <input type="hidden" name="intent" value="tetapkan" />
+              <input type="hidden" name="userId" value={person.id} />
+
+              <div class="field">
+                <label for={`role-${person.id}`}>Peran</label>
+                <select id={`role-${person.id}`} name="role">
+                  {ROLES.map((role) => (
+                    <option value={role}>{role}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div class="field">
+                <label for={`unit-${person.id}`}>Unit</label>
+                <select id={`unit-${person.id}`} name="unitId">
+                  <option value="">Seluruh organisasi</option>
+                  {unitOptions.map((unit) => (
+                    <option value={unit.id}>{unit.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button type="submit" class="btn btn--primary">
+                Tetapkan
+              </button>
+            </form>
+          </section>
+        ))}
+      </>
+    )
+  }
+</AdminLayout>
+
+<style>
+  .person__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-6);
+  }
+
+  .person__name {
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    letter-spacing: var(--tracking-heading);
+    text-transform: none;
+    color: var(--color-text);
+  }
+
+  .person__email {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .person__off {
+    color: var(--color-danger);
+    font-weight: 600;
+  }
+
+  .person__none {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    font-style: italic;
+  }
+
+  .person__roles {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  .person__roles li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-control);
+    font-size: var(--text-small);
+  }
+
+  .person__remove {
+    min-height: 44px;
+    padding-inline: var(--space-2);
+    background: none;
+    border: 0;
+    color: var(--color-danger);
+    font-size: var(--text-meta);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .person__assign {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .person__assign .field {
+    min-width: 12rem;
+  }
+
+  code {
+    padding-inline: 0.3em;
+    background-color: var(--color-surface-muted);
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+</style>

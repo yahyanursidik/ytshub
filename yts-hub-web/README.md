@@ -2,7 +2,8 @@
 
 Implementasi web publik YTS Hub mengikuti dokumen requirement di `yts-hub-md/`.
 
-**Status: Fase 0–4 selesai.** Fase 5 (admin & governance) dan seterusnya belum dikerjakan.
+**Status: Fase 0–5 selesai.** Fase 6 (integrasi & broken-link monitoring) dan seterusnya belum
+dikerjakan.
 
 ## Menjalankan
 
@@ -56,6 +57,27 @@ Perintah lain:
 | `npm run db:seed:clear` | Menghapus data pengembangan tanpa menyentuh data asli          |
 | `npm run db:status`     | Menghitung baris seed yang ada                                 |
 | `npm run db:studio`     | Drizzle Studio untuk melihat isi database                      |
+| `npm run admin:user`    | Membuat akun admin, menetapkan peran, menyetel ulang kata sandi |
+
+### Akun admin pertama
+
+Admin ada di `/admin` dan tidak punya pendaftaran mandiri. Buat akun pertama dari
+terminal, lalu masuk lewat peramban:
+
+```bash
+npx tsx scripts/admin.ts create "Nama Lengkap" nama@yts.or.id admin
+```
+
+Kata sandi acak ditampilkan sekali. Perintah lain: `role` (menetapkan peran pada unit),
+`password` (menyetel ulang), `disable`/`enable`, dan `list`.
+
+Jalankan lewat `npx tsx` dan bukan `npm run admin:user --` bila nama mengandung spasi:
+sebagian shell membuang tanda kutipnya, sehingga nama bergeser menjadi email. Perintahnya
+menolak alamat email yang tidak sah, jadi kekeliruan itu gagal dengan jelas — bukan
+membuat akun bernama aneh.
+
+Setelah ada satu admin, penugasan peran berikutnya bisa dilakukan dari `/admin/pengguna`
+tanpa akses terminal.
 
 `shot` dan `audit:a11y` memerlukan server yang sedang berjalan (`npm run dev` atau
 `npm run preview`) dan Chromium Playwright:
@@ -88,17 +110,31 @@ TypeScript 7. Naikkan bersama-sama saat `@astrojs/check` sudah kompatibel.
 ```text
 src/
 ├── components/
+│   ├── admin/          # penanda status, antrean kerja
 │   ├── landing/        # section landing page, satu file per section
 │   ├── search/         # kolom pencarian, baris hasil, feedback FAQ
 │   ├── ui/             # primitive lintas halaman (Icon, placeholder, notice)
 │   ├── SiteHeader.astro
 │   └── SiteFooter.astro
 ├── config/navigation.ts  # navigasi & task shortcut (struktur produk, bukan konten)
-├── layouts/BaseLayout.astro
+├── layouts/
+│   ├── BaseLayout.astro   # situs publik
+│   └── AdminLayout.astro  # admin — navigasi & kepadatan berbeda, token sama
+├── middleware.ts       # PENJAGA seluruh route /admin (06-CONTENT-MODEL §13)
 ├── pages/              # route publik sesuai 02-INFORMATION-ARCHITECTURE.md §8
+│   ├── admin/          # dirender saat request, dijaga middleware
 │   ├── cari.astro      # dirender saat request (prerender = false)
-│   └── api/            # endpoint saran, klik hasil, feedback FAQ
+│   └── api/            # saran pencarian, klik hasil, feedback FAQ, better-auth
 ├── server/             # KODE SERVER — jangan diimpor dari komponen klien
+│   ├── admin/
+│   │   ├── entities.ts    # peta 6 entity → kolom & field; satu sumber untuk admin
+│   │   ├── governance.ts  # SATU-SATUNYA jalan konten berubah dari admin
+│   │   ├── dashboard.ts   # antrean kerja
+│   │   └── users.ts       # pengelolaan pengguna & peran
+│   ├── auth/
+│   │   ├── auth.ts     # konfigurasi better-auth (sesi, kata sandi, cookie)
+│   │   ├── roles.ts    # ATURAN IZIN & lifecycle — fungsi murni, teruji unit
+│   │   └── session.ts  # sesi → Actor; satu-satunya pembaca cookie
 │   ├── db/
 │   │   ├── schema.ts   # core registry (06-CONTENT-MODEL-AND-CMS.md)
 │   │   ├── client.ts   # pemilihan driver Neon vs postgres.js
@@ -114,12 +150,14 @@ src/
 │   └── env.ts          # validasi environment
 ├── styles/
 │   ├── tokens.css      # design tokens — sumber tunggal warna/tipografi/spacing
-│   └── base.css        # reset ringan, layout primitive, button, input, focus
+│   ├── base.css        # reset ringan, layout primitive, button, input, focus
+│   └── admin.css       # kepadatan khusus admin, memakai token yang sama
 └── types/content.ts    # kontrak konten dari 06-CONTENT-MODEL-AND-CMS.md
 drizzle/                # migrasi SQL — di-commit, jangan diedit tangan kecuali
                         # statement yang drizzle-kit tidak bisa hasilkan
                         # (CREATE EXTENSION, index atas ekspresi); beri komentar
 scripts/db.ts           # CLI database
+scripts/admin.ts        # CLI akun admin & peran
 tools/                  # script screenshot & audit a11y
 ```
 
@@ -210,8 +248,48 @@ dan mana yang tidak menemukan apa pun", tidak bisa menjawab "siapa yang mencarin
 **Endpoint feedback FAQ belum punya pembatasan laju.** Satu orang bisa menekan
 "Ya" berkali-kali. Untuk MVP itu diterima: yang terpengaruh hanya urutan FAQ, bukan
 isi jawabannya, dan `faq_feedback` menyimpan tiap kejadian sehingga angka yang
-menyimpang bisa ditelusuri lalu direkonsiliasi. Pembatasan laju masuk bersama
-governance pada Fase 5.
+menyimpang bisa ditelusuri lalu direkonsiliasi.
+
+**Otorisasi dilingkupi unit, dan itu sebabnya ia tidak diserahkan ke pustaka auth.**
+better-auth mengurus bagian yang paling mudah salah dan paling sempit: hashing kata
+sandi, token sesi, dan cookie. Siapa boleh melakukan apa diputuskan
+`src/server/auth/roles.ts` — seluruhnya fungsi murni, sehingga aturan yang paling
+mahal bila keliru bisa diuji tanpa database (26 test). Izin di sini bergantung pada
+unit MANA yang memiliki konten: editor TS Lab School tidak bisa menyentuh milik
+Program Sosial, dan itu diperiksa di SQL, bukan setelah baris terbaca.
+
+**Ada dua lapisan penjagaan, bukan satu.** `src/middleware.ts` menjawab "sudah masuk
+dan punya peran?" untuk seluruh `/admin`, sehingga halaman admin baru tidak bisa lupa
+memeriksanya. `src/server/admin/governance.ts` menjawab "boleh menyentuh konten INI?"
+— pertanyaan yang baru bisa dijawab setelah kontennya diketahui.
+
+**Status tidak bisa diubah lewat form penyuntingan.** `status`, `published_at`,
+`reviewed_at`, dan `review_due_at` dibuang dari input sebelum apa pun ditulis;
+perpindahan status hanya lewat `transition()`. Kalau keduanya digabung, sebuah
+`<input name="status">` sudah cukup untuk melewati seluruh pemeriksaan lifecycle.
+Ada test yang membuktikan jalur itu tertutup.
+
+**Setiap perubahan status menulis audit dalam transaksi yang sama.** Karena itulah
+driver Neon dipindah dari HTTP ke WebSocket pada fase ini — `neon-http` tidak
+mendukung transaksi interaktif. Tanpa transaksi hanya ada dua pilihan dan keduanya
+merusak governance: mencatat lebih dulu bisa meninggalkan audit atas perubahan yang
+gagal, mengubah lebih dulu bisa kehilangan catatannya.
+
+**`needs_review` dihitung, tidak disimpan.** Jatuh tempo tinjauan ditentukan dengan
+membandingkan `review_due_at` terhadap waktu sekarang. Kalau statusnya ditulis oleh
+proses terjadwal, daftar "jatuh tempo" hanya seakurat proses itu — dan diamnya proses
+terlihat persis sama dengan "tidak ada yang jatuh tempo".
+
+**Akun dibuat lewat CLI, bukan halaman web.** Pendaftaran mandiri dimatikan; penjagaan
+itu berlaku juga untuk pemanggilan dari server. Kata sandi dihasilkan `npm run admin:user`
+dan ditampilkan sekali. Yang belum ada dan disebut terus terang: reset kata sandi lewat
+email (belum ada infrastruktur surat), verifikasi email, MFA, dan pembatasan laju pada
+percobaan masuk.
+
+**Empat mata belum diwajibkan.** Approver bisa menyetujui konten yang ia kirim sendiri.
+Mewajibkan dua orang berbeda membutuhkan minimal dua approver di setiap unit, dan YTS
+belum tentu punya. Audit log mencatat kedua peristiwa beserta pelakunya, sehingga
+persetujuan-sendiri terlihat jelas saat riwayatnya dibaca.
 
 ## Yang belum dikerjakan
 
@@ -222,7 +300,7 @@ governance pada Fase 5.
 | 2    | Core registry & database (Neon + Drizzle)       | Selesai |
 | 3    | Public directory routes + detail pages          | Selesai |
 | 4    | FAQ center & unified search                     | Selesai |
-| 5    | Admin & governance (RBAC, lifecycle, audit log) | Belum   |
+| 5    | Admin & governance (RBAC, lifecycle, audit log) | Selesai |
 | 6    | Integrasi & broken-link monitoring              | Belum   |
 | 7    | Observability & quality                         | Belum   |
 
@@ -235,13 +313,25 @@ relatif terhadap posisi berkasnya, jadi saat berkas itu berada di dalam
 
 Yang perlu diisi manual di **Site settings → Environment variables**:
 
-| Variabel       | Nilai                  |
-| -------------- | ---------------------- |
-| `DATABASE_URL` | Connection string Neon |
+| Variabel              | Nilai                                                  |
+| --------------------- | ------------------------------------------------------ |
+| `DATABASE_URL`        | Connection string Neon                                 |
+| `BETTER_AUTH_SECRET`  | 32+ karakter acak — menandatangani cookie sesi admin    |
+| `PUBLIC_SITE_URL`     | Origin sungguhan situs, mis. `https://hub.yts.or.id`   |
 
-Sejak Fase 4 variabel itu dibaca saat build **dan** saat request, karena `/cari`
-dan `/api/*` berjalan sebagai function. Jangan pernah menulis connection string ke
-`netlify.toml` — file itu ikut ter-commit.
+`DATABASE_URL` dibaca saat build **dan** saat request, karena `/cari`, `/api/*`, dan
+seluruh `/admin` berjalan sebagai function. `BETTER_AUTH_SECRET` dihasilkan sekali:
+
+```bash
+node -e "console.log(crypto.randomBytes(32).toString('base64'))"
+```
+
+Menggantinya membuat seluruh sesi admin yang sedang berjalan tidak berlaku.
+`PUBLIC_SITE_URL` wajib domain sungguhan di production — cookie sesi terikat
+padanya, dan nilai localhost membuat admin tidak bisa dipakai sama sekali.
+
+Jangan pernah menulis connection string atau secret ke `netlify.toml` — file itu
+ikut ter-commit.
 
 Halaman selain pencarian tetap statis, jadi **konten baru terbit setelah rebuild**,
 bukan seketika setelah editor menekan publish. Pada Fase 5 ini perlu disambungkan:

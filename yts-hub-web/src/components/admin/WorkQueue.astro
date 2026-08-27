@@ -1,0 +1,99 @@
+---
+/**
+ * Satu antrean kerja di dasbor.
+ *
+ * Bentuknya tabel, bukan kartu: isinya deretan baris sejenis yang dibandingkan
+ * kolom per kolom — persis yang tabel lakukan lebih baik daripada apa pun
+ * (05-HALLMARK-ANTI-SLOP.md §6).
+ *
+ * Antrean kosong tetap dirender dengan kalimat yang menjelaskan artinya. "Tidak
+ * ada yang menunggu tinjauan" adalah kabar baik dan layak terbaca; menyembunyikan
+ * seluruh bloknya membuat pengelola tidak tahu apakah antreannya kosong atau
+ * fiturnya rusak.
+ */
+import StatusBadge from '@/components/admin/StatusBadge.astro';
+import type { WorkItem } from '@/server/admin/dashboard';
+
+interface Props {
+  title: string;
+  description?: string;
+  items: WorkItem[];
+  emptyMessage: string;
+  /** Menampilkan kolom jatuh tempo, hanya berarti untuk antrean tinjauan ulang. */
+  showDue?: boolean;
+}
+
+const { title, description, items, emptyMessage, showDue = false } = Astro.props;
+
+const formatDate = (value: Date | string) =>
+  new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(value));
+
+const dueLabel = (days: number | null) => {
+  if (days === null) return { text: '—', className: 'due' };
+  if (days < 0) return { text: `Lewat ${Math.abs(days)} hari`, className: 'due due--overdue' };
+  if (days === 0) return { text: 'Hari ini', className: 'due due--overdue' };
+  return { text: `${days} hari lagi`, className: 'due due--soon' };
+};
+---
+
+<section class="admin-panel">
+  <h2>{title}</h2>
+  {description && <p class="queue__desc">{description}</p>}
+
+  {
+    items.length === 0 ? (
+      <p class="admin-empty">{emptyMessage}</p>
+    ) : (
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th scope="col">Judul</th>
+              <th scope="col">Jenis</th>
+              <th scope="col">Unit</th>
+              <th scope="col">Status</th>
+              {showDue ? <th scope="col">Tinjauan</th> : <th scope="col">Diubah</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => {
+              const due = dueLabel(item.daysUntilDue);
+              return (
+                <tr>
+                  <td class="admin-table__title">
+                    <a href={`/admin/${item.entitySlug}/${item.id}`}>{item.title}</a>
+                  </td>
+                  <td>{item.entityLabel}</td>
+                  <td>{item.unitName ?? '—'}</td>
+                  <td>
+                    <StatusBadge status={item.status} />
+                  </td>
+                  <td>
+                    {showDue ? (
+                      <span class={due.className}>{due.text}</span>
+                    ) : (
+                      <span class="due">{formatDate(item.updatedAt)}</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</section>
+
+<style>
+  .queue__desc {
+    max-width: 70ch;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .admin-panel > :global(.admin-table-wrap) {
+    margin-top: var(--space-4);
+  }
+</style>

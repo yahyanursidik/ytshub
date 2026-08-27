@@ -1,0 +1,176 @@
+---
+/**
+ * Daftar konten satu entity.
+ *
+ * Satu route untuk keenam entity. Bentuknya sama karena pekerjaannya sama —
+ * memilih satu baris untuk dikerjakan — dan menyalin route ini enam kali hanya
+ * akan menghasilkan enam tempat yang bisa lupa menyaring menurut izin.
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import StatusBadge from '@/components/admin/StatusBadge.astro';
+import { entityBySlug } from '@/server/admin/entities';
+import { listForActor } from '@/server/admin/governance';
+import { isReviewOverdue, type ContentStatus } from '@/server/auth/roles';
+
+const actor = Astro.locals.actor;
+if (!actor) return Astro.redirect('/admin/masuk', 302);
+
+const spec = entityBySlug(Astro.params.entity ?? '');
+if (!spec) return Astro.rewrite('/404');
+
+const STATUSES: ContentStatus[] = [
+  'draft',
+  'in_review',
+  'approved',
+  'published',
+  'needs_review',
+  'archived',
+];
+
+const requested = Astro.url.searchParams.get('status');
+const status = STATUSES.includes(requested as ContentStatus)
+  ? (requested as ContentStatus)
+  : undefined;
+
+const items = await listForActor(actor, spec.key, { status });
+
+// Hitungan diambil dari daftar penuh yang sudah tersaring izin, bukan dari query
+// terpisah — supaya angka di filter tidak pernah menghitung konten unit lain.
+const all = status ? await listForActor(actor, spec.key) : items;
+const countByStatus = new Map<ContentStatus, number>();
+for (const item of all) countByStatus.set(item.status, (countByStatus.get(item.status) ?? 0) + 1);
+
+const formatDate = (value: Date | string) =>
+  new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(value));
+
+const now = new Date();
+---
+
+<AdminLayout title={spec.labelPlural} actor={actor}>
+  <div class="admin-head">
+    <div>
+      <h1>{spec.labelPlural}</h1>
+      <p>{all.length} konten pada unit yang boleh Anda kelola.</p>
+    </div>
+  </div>
+
+  <section class="admin-panel">
+    <nav class="filters" aria-label="Saring menurut status">
+      <a href={`/admin/${spec.slug}`} aria-current={status === undefined ? 'true' : undefined}>
+        Semua <span>({all.length})</span>
+      </a>
+      {
+        STATUSES.filter((value) => (countByStatus.get(value) ?? 0) > 0).map((value) => (
+          <a
+            href={`/admin/${spec.slug}?status=${value}`}
+            aria-current={status === value ? 'true' : undefined}
+          >
+            <StatusBadge status={value} />
+            <span>({countByStatus.get(value)})</span>
+          </a>
+        ))
+      }
+    </nav>
+
+    {
+      items.length === 0 ? (
+        <p class="admin-empty">
+          {all.length === 0
+            ? `Belum ada ${spec.label.toLowerCase()} pada unit yang Anda kelola.`
+            : 'Tidak ada konten dengan status ini.'}
+        </p>
+      ) : (
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th scope="col">Judul</th>
+                <th scope="col">Unit</th>
+                <th scope="col">Status</th>
+                <th scope="col">Visibilitas</th>
+                <th scope="col">Tinjauan</th>
+                <th scope="col">Diubah</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr>
+                  <td class="admin-table__title">
+                    <a href={`/admin/${spec.slug}/${item.id}`}>{item.title}</a>
+                    <span class="admin-table__meta">/{item.slug}</span>
+                  </td>
+                  <td>{item.unitName ?? '—'}</td>
+                  <td>
+                    <StatusBadge status={item.status} />
+                  </td>
+                  <td>{item.visibility}</td>
+                  <td>
+                    {item.reviewDueAt ? (
+                      <span
+                        class={
+                          isReviewOverdue(item.status, new Date(item.reviewDueAt), now)
+                            ? 'due due--overdue'
+                            : 'due'
+                        }
+                      >
+                        {formatDate(item.reviewDueAt)}
+                      </span>
+                    ) : (
+                      <span class="due">—</span>
+                    )}
+                  </td>
+                  <td>
+                    <span class="due">{formatDate(item.updatedAt)}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+  </section>
+</AdminLayout>
+
+<style>
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .filters a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding-inline: var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    text-decoration: none;
+  }
+
+  .filters a:hover {
+    border-color: var(--color-border);
+    color: var(--color-text);
+  }
+
+  /* Ditandai bobot teks + border, bukan warna saja (09-A11Y §3). */
+  .filters a[aria-current] {
+    border-color: var(--color-brand);
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .filters span {
+    font-variant-numeric: tabular-nums;
+  }
+</style>

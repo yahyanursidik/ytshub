@@ -1,0 +1,189 @@
+---
+/**
+ * Halaman masuk admin.
+ *
+ * Form HTML biasa yang POST ke dirinya sendiri — bukan fetch dari klien.
+ * Alasannya bukan nostalgia: halaman ini adalah pintu satu-satunya ke seluruh
+ * admin, dan ia harus tetap berfungsi meski JavaScript gagal dimuat. Pesan
+ * kesalahan pun dirender server, jadi tidak ada keadaan "tombol ditekan, tidak
+ * terjadi apa-apa".
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { getAuth } from '@/server/auth/auth';
+import { getActor } from '@/server/auth/session';
+
+/**
+ * Tujuan setelah berhasil masuk.
+ *
+ * Hanya menerima path internal. Tanpa pemeriksaan ini, `?lanjut=https://...`
+ * mengubah halaman masuk menjadi pengalih terbuka — pola yang dipakai untuk
+ * membuat tautan phishing yang berawal di domain yang benar. `//jahat.example`
+ * ikut ditolak karena browser membacanya sebagai protokol-relatif.
+ */
+function safeNext(value: string | null): string {
+  if (!value) return '/admin';
+  if (!value.startsWith('/') || value.startsWith('//')) return '/admin';
+  return value;
+}
+
+const next = safeNext(Astro.url.searchParams.get('lanjut'));
+
+// Sudah punya sesi: tidak perlu form sama sekali.
+if (await getActor(Astro.request)) {
+  return Astro.redirect(next, 302);
+}
+
+let error: string | null = null;
+let email = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+
+  if (!email || !password) {
+    error = 'Email dan kata sandi harus diisi.';
+  } else {
+    try {
+      const response = await getAuth().api.signInEmail({
+        body: { email: email.toLowerCase(), password },
+        asResponse: true,
+      });
+
+      if (response.ok) {
+        // Cookie sesi datang dari better-auth; diteruskan apa adanya agar
+        // atribut keamanannya (httpOnly, sameSite, secure) tidak disusun ulang
+        // di sini dan berisiko berbeda.
+        const headers = new Headers({ Location: safeNext(next) });
+        for (const cookie of response.headers.getSetCookie()) {
+          headers.append('set-cookie', cookie);
+        }
+        return new Response(null, { status: 302, headers });
+      }
+
+      // Satu pesan untuk email salah maupun kata sandi salah: membedakannya
+      // memberi tahu penebak bahwa sebuah alamat email terdaftar.
+      error = 'Email atau kata sandi tidak cocok.';
+    } catch (caught) {
+      console.error('[auth] gagal memproses masuk:', caught);
+      error = 'Sedang ada gangguan di sisi kami. Coba lagi beberapa saat lagi.';
+    }
+  }
+}
+---
+
+<AdminLayout title="Masuk" bare>
+  <div class="login">
+    <div class="login__brand">
+      <span class="login__mark">YTS</span> Hub
+    </div>
+    <h1>Masuk ke admin</h1>
+    <p class="login__lead">
+      Halaman ini untuk pengelola konten YTS Hub. Akun dibuat oleh admin — tidak ada pendaftaran
+      mandiri.
+    </p>
+
+    {
+      error && (
+        <p class="notice notice--error" role="alert">
+          {error}
+        </p>
+      )
+    }
+
+    <form method="post" class="admin-form login__form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={email}
+          required
+          autocomplete="username"
+          autofocus
+        />
+      </div>
+
+      <div class="field">
+        <label for="password">Kata sandi</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+          autocomplete="current-password"
+        />
+      </div>
+
+      <button type="submit" class="btn btn--primary">Masuk</button>
+    </form>
+
+    <p class="login__help">
+      Lupa kata sandi? Hubungi admin YTS Hub — penyetelan ulang dilakukan lewat perintah
+      administratif, belum lewat email.
+    </p>
+
+    <p class="login__back"><a href="/">← Kembali ke situs publik</a></p>
+  </div>
+</AdminLayout>
+
+<style>
+  .login {
+    width: 100%;
+    max-width: 26rem;
+    padding: var(--space-8);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+  }
+
+  .login__brand {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  .login__mark {
+    color: var(--color-brand);
+  }
+
+  .login h1 {
+    margin-top: var(--space-4);
+    font-size: var(--text-h3);
+  }
+
+  .login__lead {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .login .notice {
+    margin-top: var(--space-4);
+  }
+
+  .login__form {
+    margin-top: var(--space-6);
+  }
+
+  .login__form .btn {
+    width: 100%;
+  }
+
+  .login__help {
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .login__back {
+    margin-top: var(--space-3);
+    font-size: var(--text-meta);
+  }
+</style>

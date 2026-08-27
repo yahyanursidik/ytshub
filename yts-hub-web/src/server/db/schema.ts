@@ -18,6 +18,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -574,6 +575,222 @@ export const faqFeedback = pgTable(
   (table) => [index('faq_feedback_faq_idx').on(table.faqId, table.createdAt)],
 );
 
+/* ================================================== autentikasi (Fase 5) */
+
+/**
+ * Tabel milik better-auth.
+ *
+ * Bentuk kolomnya DITENTUKAN oleh better-auth, bukan oleh kami — nama dan tipenya
+ * harus persis, karena adapter Drizzle-nya memetakan berdasarkan nama field.
+ * Meski begitu tabelnya tetap didefinisikan di sini, bukan di file terpisah, agar
+ * satu perintah `db:generate` menghasilkan seluruh migrasi dan tidak ada skema
+ * yang hidup di luar kendali drizzle-kit.
+ *
+ * `id` di sini `text`, bukan `uuid` seperti tabel konten: better-auth membuat
+ * sendiri id-nya sebagai string acak sebelum menyentuh database.
+ *
+ * Yang TIDAK ada di sini: kolom password. better-auth menyimpan hash-nya di
+ * `accounts.password` untuk provider 'credential' — pemisahan itu bawaan
+ * desainnya, supaya satu user bisa punya beberapa cara masuk kelak.
+ */
+export const users = pgTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    image: text('image'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Akun yang dinonaktifkan tidak bisa masuk, tetapi barisnya tidak dihapus —
+     * audit log menunjuk ke user ini, dan riwayat siapa menerbitkan apa tidak
+     * boleh hilang hanya karena orangnya sudah tidak bertugas (06-CONTENT §10).
+     */
+    isActive: boolean('is_active').notNull().default(true),
+  },
+  (table) => [uniqueIndex('users_email_key').on(table.email)],
+);
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    token: text('token').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('sessions_token_key').on(table.token),
+    index('sessions_user_idx').on(table.userId),
+    index('sessions_expires_idx').on(table.expiresAt),
+  ],
+);
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    /**
+     * Penerbit identitas. Untuk masuk dengan kata sandi, better-auth mengisinya
+     * dengan penanda sintetis `local:credential`; kolom ini menjadi berarti bila
+     * kelak ada penyedia OAuth, agar id provider tidak bisa bertabrakan dengan
+     * metode masuk internal. Wajib ada — better-auth menolak baris tanpa ini.
+     */
+    issuer: text('issuer').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    /** Hash kata sandi untuk provider 'credential'. TIDAK PERNAH kata sandi mentah. */
+    password: text('password'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('accounts_user_idx').on(table.userId)],
+);
+
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('verifications_identifier_idx').on(table.identifier)],
+);
+
+/* ==================================================== RBAC & governance */
+
+/**
+ * Peran — 10-DEVELOPMENT-PLAN.md §8, 06-CONTENT-MODEL-AND-CMS.md §10.
+ *
+ * Empat peran, bukan lebih. Setiap peran tambahan harus bisa menjawab
+ * "tindakan apa yang tidak bisa dilakukan peran yang sudah ada"; kalau tidak,
+ * ia hanya menambah tempat untuk salah konfigurasi.
+ *
+ * - viewer   — melihat isi admin, tidak mengubah apa pun
+ * - editor   — membuat & menyunting draft, mengirim untuk ditinjau
+ * - approver — menyetujui, menerbitkan, mengarsipkan
+ * - admin    — seluruhnya, termasuk mengelola pengguna dan peran
+ */
+export const userRole = pgEnum('user_role', ['viewer', 'editor', 'approver', 'admin']);
+
+/**
+ * Penugasan peran, DILINGKUPI UNIT.
+ *
+ * Ini inti otorisasi YTS Hub dan alasan RBAC-nya tidak bisa diserahkan ke
+ * pustaka autentikasi: izin di sini bergantung pada unit MANA yang memiliki
+ * konten, bukan sekadar peran global. Editor TS Lab School boleh menyunting
+ * layanan TS Lab School dan tidak boleh menyentuh milik Program Sosial.
+ *
+ * `unitId` null berarti berlaku untuk seluruh organisasi — dipakai peran admin,
+ * dan boleh juga untuk approver lintas unit bila YTS memutuskan begitu.
+ *
+ * Satu pengguna boleh punya beberapa baris: editor di satu unit sekaligus
+ * approver di unit lain adalah keadaan yang wajar di yayasan kecil.
+ */
+export const userUnitRoles = pgTable(
+  'user_unit_roles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** null = seluruh organisasi, bukan "belum diisi". */
+    unitId: uuid('unit_id').references(() => units.id, { onDelete: 'cascade' }),
+    role: userRole('role').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('user_unit_roles_user_idx').on(table.userId),
+    index('user_unit_roles_unit_idx').on(table.unitId),
+  ],
+);
+
+/** Jenis entity yang tunduk pada lifecycle — 06-CONTENT-MODEL §9. */
+export const auditEntity = pgEnum('audit_entity', [
+  'unit',
+  'service',
+  'program',
+  'event',
+  'faq',
+  'application',
+]);
+
+export const auditAction = pgEnum('audit_action', [
+  'created',
+  'updated',
+  'status_changed',
+  'deleted',
+]);
+
+/**
+ * Audit trail sekaligus riwayat versi — 06-CONTENT-MODEL §12 dan
+ * 12-ACCEPTANCE-CHECKLIST "Audit trail tersedia untuk perubahan penting".
+ *
+ * Satu tabel, bukan dua. §12 meminta version number, editor, timestamp, change
+ * summary, dan previous state; audit trail meminta siapa mengubah apa dan kapan.
+ * Isinya sama — memisahkannya hanya membuat dua sumber kebenaran yang harus
+ * dijaga tetap sinkron.
+ *
+ * `snapshotBefore` menyimpan keadaan baris SEBELUM perubahan. Dipilih "sebelum",
+ * bukan "sesudah", karena keadaan sesudah selalu bisa dibaca dari tabel aslinya
+ * bila itu perubahan terakhir — sedangkan keadaan sebelumnya hilang selamanya
+ * kalau tidak disimpan di sini.
+ *
+ * `actorId` boleh null HANYA untuk perubahan yang dilakukan sistem (mis. seed
+ * atau migrasi), dan itu terbaca jelas sebagai "sistem" di UI — bukan sebagai
+ * pengguna yang tidak diketahui.
+ */
+export const contentAudit = pgTable(
+  'content_audit',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entity: auditEntity('entity').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    /** Disalin saat pencatatan supaya riwayat tetap terbaca meski slug berubah. */
+    entitySlug: text('entity_slug').notNull(),
+    action: auditAction('action').notNull(),
+    fromStatus: contentStatus('from_status'),
+    toStatus: contentStatus('to_status'),
+    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Nama pelaku saat kejadian — bertahan meski user dihapus. */
+    actorName: text('actor_name'),
+    /** Alasan singkat dari editor; wajib untuk penolakan dan pengarsipan. */
+    changeSummary: text('change_summary'),
+    /** Nama kolom yang berubah — cukup untuk daftar riwayat tanpa membaca snapshot. */
+    changedFields: text('changed_fields')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    snapshotBefore: jsonb('snapshot_before'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('content_audit_entity_idx').on(table.entity, table.entityId, table.createdAt),
+    index('content_audit_actor_idx').on(table.actorId),
+    index('content_audit_created_idx').on(table.createdAt),
+  ],
+);
+
 /* -------------------------------------------------------------- relations */
 
 export const unitsRelations = relations(units, ({ many, one }) => ({
@@ -621,6 +838,29 @@ export const faqsRelations = relations(faqs, ({ one, many }) => ({
 
 export const faqFeedbackRelations = relations(faqFeedback, ({ one }) => ({
   faq: one(faqs, { fields: [faqFeedback.faqId], references: [faqs.id] }),
+}));
+
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(sessions),
+  accounts: many(accounts),
+  roles: many(userUnitRoles),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, { fields: [accounts.userId], references: [users.id] }),
+}));
+
+export const userUnitRolesRelations = relations(userUnitRoles, ({ one }) => ({
+  user: one(users, { fields: [userUnitRoles.userId], references: [users.id] }),
+  unit: one(units, { fields: [userUnitRoles.unitId], references: [units.id] }),
+}));
+
+export const contentAuditRelations = relations(contentAudit, ({ one }) => ({
+  actor: one(users, { fields: [contentAudit.actorId], references: [users.id] }),
 }));
 
 export const applicationsRelations = relations(applications, ({ one }) => ({

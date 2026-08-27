@@ -1,0 +1,476 @@
+---
+/**
+ * Detail konten: menyunting, memindahkan status, dan membaca riwayatnya.
+ *
+ * Seluruh aksi berupa form POST ke halaman ini sendiri. Tidak ada fetch dari
+ * klien dan tidak ada state di peramban — halaman ini mengubah informasi resmi
+ * yayasan, dan hasil setiap tindakan harus datang dari server yang benar-benar
+ * melakukannya, bukan dari tebakan optimistis di layar.
+ *
+ * Penyuntingan dan transisi status dipisah menjadi dua form. Menggabungkannya
+ * akan membuat sebuah `<input name="status">` cukup untuk melewati seluruh
+ * pemeriksaan lifecycle — lihat catatan di governance.ts.
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import StatusBadge from '@/components/admin/StatusBadge.astro';
+import { entityBySlug } from '@/server/admin/entities';
+import {
+  auditFor,
+  getForActor,
+  GovernanceError,
+  transition,
+  updateContent,
+} from '@/server/admin/governance';
+import { can, transitionsFrom, type ContentStatus } from '@/server/auth/roles';
+
+const actor = Astro.locals.actor;
+if (!actor) return Astro.redirect('/admin/masuk', 302);
+
+const spec = entityBySlug(Astro.params.entity ?? '');
+const id = Astro.params.id;
+if (!spec || !id) return Astro.rewrite('/404');
+
+let error: string | null = null;
+let success: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  try {
+    if (intent === 'simpan') {
+      const input: Record<string, unknown> = {};
+      for (const field of spec.fields) {
+        const raw = form.get(field.name);
+        if (field.type === 'boolean') {
+          input[field.name] = raw !== null;
+        } else if (field.type === 'number') {
+          const value = String(raw ?? '').trim();
+          input[field.name] = value === '' ? 0 : Number(value);
+        } else if (field.type === 'datetime') {
+          const value = String(raw ?? '').trim();
+          input[field.name] = value === '' ? null : new Date(value);
+        } else {
+          const value = String(raw ?? '').trim();
+          // String kosong disimpan sebagai null, bukan '': halaman publik
+          // membedakan "belum diisi" dari "sengaja dikosongkan", dan '' akan
+          // lolos setiap pemeriksaan `field ? ... : ...`.
+          input[field.name] = value === '' ? null : value;
+        }
+      }
+
+      const summary = String(form.get('changeSummary') ?? '').trim() || null;
+      const result = await updateContent(actor, spec.key, id, input, summary);
+
+      success =
+        result.changedFields.length === 0
+          ? 'Tidak ada yang berubah.'
+          : `Tersimpan. ${result.changedFields.length} field diperbarui.`;
+    } else if (intent === 'transisi') {
+      const to = String(form.get('to') ?? '') as ContentStatus;
+      const reason = String(form.get('reason') ?? '').trim() || null;
+      const result = await transition(actor, spec.key, id, to, reason);
+
+      success =
+        result.to === 'published'
+          ? `Terbit. Jadwal tinjauan berikutnya ${new Intl.DateTimeFormat('id-ID', {
+              dateStyle: 'long',
+            }).format(result.reviewDueAt!)}.`
+          : `Status berubah dari ${result.from} menjadi ${result.to}.`;
+    }
+  } catch (caught) {
+    if (caught instanceof GovernanceError) {
+      error = caught.message;
+    } else {
+      console.error('[admin] aksi gagal:', caught);
+      error = 'Sedang ada gangguan di sisi kami. Perubahan tidak disimpan.';
+    }
+  }
+}
+
+/**
+ * Dibaca SETELAH aksi diproses, supaya layar menampilkan keadaan terbaru.
+ *
+ * Penolakan izin dirender sebagai halaman 403 yang menjelaskan, bukan dilempar
+ * sebagai error 500 maupun disamarkan menjadi 404. Menyamarkannya akan membuat
+ * pengelola mengira tautan dari rekannya rusak, lalu melapor ke admin untuk
+ * sesuatu yang justru bekerja sebagaimana mestinya. Yang tidak ditampilkan
+ * adalah isi kontennya — hanya fakta bahwa ia milik unit lain.
+ */
+let row: Awaited<ReturnType<typeof getForActor>> | null = null;
+let forbidden: string | null = null;
+
+try {
+  row = await getForActor(actor, spec.key, id);
+} catch (caught) {
+  if (!(caught instanceof GovernanceError)) throw caught;
+  if (caught.kind === 'not_found') return Astro.rewrite('/404');
+  forbidden = caught.message;
+  Astro.response.status = 403;
+}
+
+const audit = row ? await auditFor(actor, spec.key, id) : [];
+
+const status = row?.status ?? 'draft';
+const canEdit = row ? can(actor, 'update', row.ownerUnitId).allowed : false;
+
+/** Transisi yang sah DAN boleh dilakukan orang ini — sisanya tidak dirender. */
+const available = row
+  ? transitionsFrom(status).filter(
+      (option) => can(actor, option.action, row!.ownerUnitId).allowed,
+    )
+  : [];
+
+const title = row ? String(row[spec.titleColumn] ?? '(tanpa judul)') : 'Tidak berwenang';
+const publicHref = row && status === 'published' ? spec.publicPath(row.slug) : null;
+
+const formatDateTime = (value: Date | string) =>
+  new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(value),
+  );
+
+/** Nilai untuk atribut `value` pada input datetime-local. */
+const toDatetimeInput = (value: unknown) => {
+  if (!value) return '';
+  const date = new Date(value as string);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 16);
+};
+
+const AUDIT_LABEL: Record<string, string> = {
+  created: 'Dibuat',
+  updated: 'Disunting',
+  status_changed: 'Status berubah',
+  deleted: 'Dihapus',
+};
+---
+
+<AdminLayout title={title} actor={actor}>
+  {
+    forbidden ? (
+      <div class="forbidden">
+        <p class="crumb">
+          <a href={`/admin/${spec.slug}`}>← {spec.labelPlural}</a>
+        </p>
+        <h1>Konten ini bukan milik unit Anda</h1>
+        <p>{forbidden}</p>
+        <p class="forbidden__next">
+          Bila Anda memang perlu mengelolanya, minta admin YTS Hub menambahkan peran Anda pada unit
+          pemiliknya.
+        </p>
+      </div>
+    ) : (
+      <>
+        <div class="admin-head">
+          <div>
+            <p class="crumb">
+              <a href={`/admin/${spec.slug}`}>{spec.labelPlural}</a>
+            </p>
+            <h1>{title}</h1>
+            <p>
+              <StatusBadge status={status} />
+              <span class="detail__slug">/{row!.slug}</span>
+              {publicHref && (
+                <a class="detail__public" href={publicHref} target="_blank" rel="noopener">
+                  Lihat di situs publik ↗
+                </a>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <p class="notice notice--error" role="alert">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p class="notice notice--ok" role="status">
+            {success}
+          </p>
+        )}
+
+        <div class="admin-split">
+    <div>
+      <section class="admin-panel">
+        <h2>Isi konten</h2>
+
+        {
+          !canEdit && (
+            <p class="notice">
+              Anda hanya bisa membaca konten ini. Menyunting membutuhkan peran editor pada unit
+              pemiliknya.
+            </p>
+          )
+        }
+
+        <form method="post" class="admin-form detail__form">
+          <input type="hidden" name="intent" value="simpan" />
+
+          {
+            spec.fields.map((field) => {
+              const value = row![field.name];
+              const id = `field-${field.name}`;
+              const describedBy = field.help ? `${id}-help` : undefined;
+
+              return (
+                <div
+                  class:list={[
+                    'field',
+                    { 'field--required': field.required, 'field--boolean': field.type === 'boolean' },
+                  ]}
+                >
+                  {field.type === 'boolean' ? (
+                    <>
+                      <input
+                        type="checkbox"
+                        id={id}
+                        name={field.name}
+                        checked={Boolean(value)}
+                        disabled={!canEdit}
+                        aria-describedby={describedBy}
+                      />
+                      <label for={id}>{field.label}</label>
+                    </>
+                  ) : (
+                    <>
+                      <label for={id}>{field.label}</label>
+                      {field.type === 'textarea' ? (
+                        <textarea
+                          id={id}
+                          name={field.name}
+                          maxlength={field.maxLength}
+                          disabled={!canEdit}
+                          aria-describedby={describedBy}
+                        >
+                          {String(value ?? '')}
+                        </textarea>
+                      ) : field.type === 'select' ? (
+                        <select id={id} name={field.name} disabled={!canEdit} aria-describedby={describedBy}>
+                          {field.options?.map((option) => (
+                            <option value={option.value} selected={value === option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={
+                            field.type === 'url'
+                              ? 'url'
+                              : field.type === 'number'
+                                ? 'number'
+                                : field.type === 'datetime'
+                                  ? 'datetime-local'
+                                  : 'text'
+                          }
+                          id={id}
+                          name={field.name}
+                          value={
+                            field.type === 'datetime' ? toDatetimeInput(value) : String(value ?? '')
+                          }
+                          maxlength={field.maxLength}
+                          disabled={!canEdit}
+                          aria-describedby={describedBy}
+                        />
+                      )}
+                    </>
+                  )}
+                  {field.help && (
+                    <span class="field__help" id={`${id}-help`}>
+                      {field.help}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          }
+
+          {
+            canEdit && (
+              <>
+                <div class="field">
+                  <label for="changeSummary">Ringkasan perubahan</label>
+                  <input type="text" id="changeSummary" name="changeSummary" maxlength={200} />
+                  <span class="field__help">
+                    Opsional, tetapi sangat membantu saat riwayat ini dibaca berbulan-bulan lagi.
+                  </span>
+                </div>
+                <div class="admin-actions">
+                  <button type="submit" class="btn btn--primary">
+                    Simpan perubahan
+                  </button>
+                </div>
+              </>
+            )
+          }
+        </form>
+      </section>
+    </div>
+
+    <aside>
+      <section class="admin-panel">
+        <h2>Alur penerbitan</h2>
+
+        {
+          available.length === 0 ? (
+            <p class="admin-empty">
+              Tidak ada tindakan yang tersedia untuk Anda pada status ini.
+            </p>
+          ) : (
+            <ul class="transitions">
+              {available.map((option) => (
+                <li>
+                  <form method="post">
+                    <input type="hidden" name="intent" value="transisi" />
+                    <input type="hidden" name="to" value={option.to} />
+                    {option.requiresReason && (
+                      <div class="field">
+                        <label for={`reason-${option.to}`}>Alasan</label>
+                        <input
+                          type="text"
+                          id={`reason-${option.to}`}
+                          name="reason"
+                          required
+                          maxlength={200}
+                        />
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      class:list={[
+                        'btn',
+                        option.to === 'published' ? 'btn--primary' : 'btn--secondary',
+                      ]}
+                    >
+                      {option.label}
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </section>
+
+      <section class="admin-panel">
+        <h2>Tinjauan</h2>
+        <dl class="meta">
+          <dt>Terbit</dt>
+          <dd>{row!.publishedAt ? formatDateTime(row!.publishedAt as string) : '—'}</dd>
+          <dt>Ditinjau</dt>
+          <dd>{row!.reviewedAt ? formatDateTime(row!.reviewedAt as string) : '—'}</dd>
+          <dt>Jatuh tempo</dt>
+          <dd>{row!.reviewDueAt ? formatDateTime(row!.reviewDueAt as string) : '—'}</dd>
+        </dl>
+      </section>
+
+      <section class="admin-panel">
+        <h2>Riwayat</h2>
+        {
+          audit.length === 0 ? (
+            <p class="admin-empty">Belum ada perubahan yang tercatat.</p>
+          ) : (
+            <div class="audit">
+              {audit.map((entry) => (
+                <div class="audit__row">
+                  <span>
+                    <strong>{AUDIT_LABEL[entry.action] ?? entry.action}</strong>
+                    {entry.fromStatus && entry.toStatus && (
+                      <span> — {entry.fromStatus} → {entry.toStatus}</span>
+                    )}
+                  </span>
+                  <span class="audit__when">
+                    {formatDateTime(entry.createdAt)} · {entry.actorName ?? 'sistem'}
+                  </span>
+                  {entry.changeSummary && (
+                    <span class="audit__summary">"{entry.changeSummary}"</span>
+                  )}
+                  {entry.action === 'updated' && entry.changedFields.length > 0 && (
+                    <span class="audit__summary">{entry.changedFields.join(', ')}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </section>
+        </aside>
+        </div>
+      </>
+    )
+  }
+</AdminLayout>
+
+<style>
+  .crumb {
+    margin-bottom: var(--space-2);
+    font-size: var(--text-small);
+  }
+
+  .crumb a {
+    color: var(--color-text-muted);
+  }
+
+  .admin-head h1 {
+    max-width: 30ch;
+  }
+
+  .admin-head p:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+  }
+
+  .detail__slug {
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .detail__public {
+    font-size: var(--text-small);
+  }
+
+  .notice {
+    margin-bottom: var(--space-4);
+  }
+
+  .detail__form {
+    margin-top: var(--space-4);
+  }
+
+  .transitions {
+    display: grid;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  .transitions .btn {
+    width: 100%;
+  }
+
+  .transitions .field {
+    margin-bottom: var(--space-2);
+  }
+
+  .meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-1) var(--space-4);
+    margin-top: var(--space-3);
+    font-size: var(--text-small);
+  }
+
+  .meta dt {
+    color: var(--color-text-muted);
+  }
+
+  .meta dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

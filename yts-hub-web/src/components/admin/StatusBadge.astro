@@ -1,0 +1,27 @@
+---
+/**
+ * Penanda status lifecycle — 06-CONTENT-MODEL-AND-CMS.md §9.
+ *
+ * Label ditulis dalam bahasa yang dipakai pengelola, bukan nilai enum-nya.
+ * "in_review" adalah nama kolom; "Menunggu tinjauan" adalah keadaan yang
+ * dipahami orang yang harus menindaklanjutinya.
+ */
+import type { ContentStatus } from '@/server/auth/roles';
+
+interface Props {
+  status: ContentStatus;
+}
+
+const { status } = Astro.props;
+
+const LABEL: Record<ContentStatus, string> = {
+  draft: 'Draft',
+  in_review: 'Menunggu tinjauan',
+  approved: 'Disetujui',
+  published: 'Terbit',
+  needs_review: 'Perlu ditinjau',
+  archived: 'Arsip',
+};
+---
+
+<span class={`status status--${status}`}>{LABEL[status]}</span>

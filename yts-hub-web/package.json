@@ -28,7 +28,8 @@
     "db:seed": "tsx scripts/db.ts seed",
     "db:seed:clear": "tsx scripts/db.ts seed:clear",
     "db:status": "tsx scripts/db.ts status",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "admin:user": "tsx scripts/admin.ts"
   },
   "dependencies": {
     "@astrojs/netlify": "8.2.4",
@@ -37,6 +38,7 @@
     "@fontsource-variable/source-serif-4": "^5.3.0",
     "@neondatabase/serverless": "^1.1.0",
     "astro": "7.2.8",
+    "better-auth": "1.7.2",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9",
     "react": "19.2.8",

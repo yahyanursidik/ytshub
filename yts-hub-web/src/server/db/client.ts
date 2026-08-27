@@ -2,16 +2,28 @@
  * Koneksi database.
  *
  * Dua driver, satu API Drizzle:
- * - Neon (staging/production di Netlify) memakai driver HTTP serverless — tidak
- *   memegang koneksi TCP yang mahal di lingkungan function;
+ * - Neon (staging/production di Netlify) memakai driver WebSocket serverless;
  * - Postgres lokal (pengembangan dan test) memakai postgres.js.
  *
  * Pilihan driver ditentukan dari DATABASE_URL, bukan flag terpisah, supaya tidak
  * ada kombinasi env yang saling bertentangan.
+ *
+ * ## Kenapa WebSocket, bukan HTTP seperti Fase 2-4
+ *
+ * Driver `neon-http` lebih ringan dan cukup selama seluruh operasi hanya membaca.
+ * Fase 5 mengubah itu: setiap perpindahan status HARUS tercatat di audit log
+ * dalam satu transaksi dengan perubahan barisnya. Tanpa transaksi hanya ada dua
+ * pilihan, dan keduanya merusak governance — mencatat lebih dulu bisa
+ * meninggalkan audit atas perubahan yang ternyata gagal, sedangkan mengubah
+ * lebih dulu bisa kehilangan catatannya sama sekali.
+ *
+ * `neon-http` tidak mendukung transaksi interaktif; `neon-serverless` mendukung.
+ * Peringatan soal ini sudah ditulis di file ini sejak Fase 2, dan inilah fase
+ * yang dimaksud.
  */
-import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
 import { drizzle as drizzlePostgres, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { neon } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
 import postgres from 'postgres';
 
 import { getServerEnv } from '@/server/env';
@@ -26,19 +38,29 @@ import * as schema from '@/server/db/schema';
  * dipakai di sini (select/insert/update/delete/returning), jadi satu tipe konkret
  * dipakai sebagai kontrak bersama.
  *
- * Yang TIDAK identik: neon-http tidak mendukung transaksi interaktif
- * (`db.transaction(...)` dengan beberapa round-trip). Kalau nanti ada operasi yang
- * membutuhkannya — kemungkinan besar pada Fase 5 saat lifecycle approve/publish —
- * pakai driver WebSocket Neon untuk jalur itu, jangan asumsikan transaksi berjalan
- * hanya karena lolos di Postgres lokal.
+ * Sejak Fase 5 kedua driver mendukung `db.transaction(...)`, jadi kontrak ini
+ * mencakup transaksi juga — itulah alasan Neon dipindah dari HTTP ke WebSocket.
  */
 export type Database = PostgresJsDatabase<typeof schema>;
+
+/**
+ * Driver Neon memerlukan implementasi WebSocket. Node 22+ sudah punya `WebSocket`
+ * global, jadi tidak ada paket tambahan yang perlu di-bundle ke function; baris
+ * ini hanya menunjukkannya kepada driver. Netlify menjalankan Node 22
+ * (lihat netlify.toml), dan `engines` di package.json menjaga batas bawahnya.
+ */
+if (typeof globalThis.WebSocket !== 'undefined') {
+  neonConfig.webSocketConstructor = globalThis.WebSocket;
+}
 
 export function createDatabase(): Database {
   const { databaseUrl, isNeon } = getServerEnv();
 
   if (isNeon) {
-    return drizzleNeon(neon(databaseUrl), {
+    // Pool, bukan koneksi tunggal: satu instance function melayani banyak request
+    // berurutan, dan transaksi butuh koneksi yang dipegang selama blok berjalan.
+    const pool = new Pool({ connectionString: databaseUrl, max: 3 });
+    return drizzleNeon(pool, {
       schema,
       casing: 'snake_case',
     }) as unknown as Database;

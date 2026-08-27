@@ -1,0 +1,478 @@
+/*
+ * YTS Hub — Admin.
+ *
+ * Memakai token yang sama dengan situs publik (tokens.css), tetapi kepadatannya
+ * berbeda dengan sengaja: admin adalah alat kerja yang dipandangi berjam-jam,
+ * bukan halaman yang dibaca sekali. Barisnya lebih rapat, tipografinya lebih
+ * kecil, dan tidak ada ruang kosong besar yang memaksa orang menggulir untuk
+ * membandingkan dua baris.
+ *
+ * Yang TIDAK berbeda: warna, fokus, dan ukuran target sentuh. Aturan
+ * accessibility di 09-A11Y berlaku penuh — admin dipakai orang yang sama.
+ */
+
+.admin {
+  background-color: var(--color-surface-muted);
+}
+
+/* ---------------------------------------------------------- bilah atas */
+
+.admin-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--color-text);
+  color: var(--color-text-on-brand);
+}
+
+.admin-bar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-6);
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: var(--space-2) var(--gutter);
+}
+
+.admin-bar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  color: var(--color-text-on-brand);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-bar__tag {
+  padding-inline: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--color-text-on-brand) 40%, transparent);
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+}
+
+.admin-nav {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+
+.admin-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-control);
+  color: color-mix(in srgb, var(--color-text-on-brand) 78%, transparent);
+  font-size: var(--text-small);
+  text-decoration: none;
+}
+
+.admin-nav a:hover {
+  background-color: color-mix(in srgb, var(--color-text-on-brand) 12%, transparent);
+  color: var(--color-text-on-brand);
+}
+
+.admin-nav a[aria-current='page'] {
+  background-color: color-mix(in srgb, var(--color-text-on-brand) 16%, transparent);
+  color: var(--color-text-on-brand);
+  font-weight: 600;
+}
+
+.admin-bar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-bar__name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+}
+
+.admin-bar__role {
+  color: color-mix(in srgb, var(--color-text-on-brand) 65%, transparent);
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+}
+
+.admin-bar__signout {
+  min-height: 40px;
+  padding-inline: var(--space-3);
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--color-text-on-brand) 35%, transparent);
+  border-radius: var(--radius-control);
+  color: var(--color-text-on-brand);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.admin-bar__signout:hover {
+  background-color: color-mix(in srgb, var(--color-text-on-brand) 12%, transparent);
+}
+
+.admin-bar :focus-visible {
+  outline-color: var(--color-page);
+}
+
+/* ------------------------------------------------------------- kerangka */
+
+.admin-main {
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: var(--space-8) var(--gutter) var(--space-16);
+}
+
+.admin-main--bare {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding-block: var(--space-8);
+}
+
+.admin-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.admin-head h1 {
+  font-size: var(--text-h2);
+}
+
+.admin-head p {
+  max-width: 68ch;
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.admin-panel {
+  padding: var(--space-6);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.admin-panel + .admin-panel {
+  margin-top: var(--space-6);
+}
+
+.admin-panel > h2 {
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------- tabel */
+
+.admin-table-wrap {
+  /* Tabel lebar menggulir di dalam wadahnya sendiri, bukan menggeser halaman. */
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+}
+
+.admin-table th {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: var(--tracking-meta);
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.admin-table tbody tr:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.admin-table__title {
+  font-weight: 550;
+}
+
+.admin-table__title a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.admin-table__title a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.admin-table__meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/*
+ * Ditahan tetap rapat. Dasbor menampilkan empat antrean sekaligus, dan antrean
+ * yang kosong adalah keadaan yang paling sering terjadi pada hari kerja yang
+ * normal — memberinya tinggi seperti tabel penuh membuat halaman kerja berubah
+ * menjadi empat kotak kosong yang harus digulir.
+ */
+.admin-empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+/* -------------------------------------------------------------- status */
+
+/*
+ * Status ditandai bentuk DAN warna: 09-A11Y §3 melarang warna menjadi
+ * satu-satunya pembawa makna, dan enam status terlalu banyak untuk dibedakan
+ * warna saja oleh siapa pun.
+ */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline: 0.5rem;
+  padding-block: 0.15rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  font-size: var(--text-meta);
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.status--draft {
+  color: var(--color-text-muted);
+}
+
+.status--in_review {
+  color: var(--c-accent-warm);
+  border-color: color-mix(in srgb, var(--c-accent-warm) 45%, transparent);
+}
+
+.status--approved {
+  color: var(--color-brand);
+  border-color: color-mix(in srgb, var(--color-brand) 40%, transparent);
+}
+
+.status--published {
+  color: var(--color-status-live);
+  border-color: color-mix(in srgb, var(--color-status-live) 45%, transparent);
+  background-color: color-mix(in srgb, var(--color-status-live) 8%, transparent);
+}
+
+.status--needs_review {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+}
+
+.status--archived {
+  color: var(--color-text-muted);
+  border-style: dashed;
+}
+
+.due {
+  font-size: var(--text-meta);
+  white-space: nowrap;
+}
+
+.due--overdue {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.due--soon {
+  color: var(--c-accent-warm);
+}
+
+/* ---------------------------------------------------------------- form */
+
+.admin-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.field > label {
+  font-size: var(--text-small);
+  font-weight: 550;
+}
+
+.field__help {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.field input[type='text'],
+.field input[type='url'],
+.field input[type='number'],
+.field input[type='datetime-local'],
+.field textarea,
+.field select {
+  font: inherit;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+}
+
+.field textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.field--boolean {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.field--boolean input {
+  width: 20px;
+  height: 20px;
+}
+
+.field--required > label::after {
+  content: ' *';
+  color: var(--color-danger);
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+/* --------------------------------------------------------------- pesan */
+
+.notice {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  font-size: var(--text-small);
+}
+
+.notice--error {
+  border-color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 7%, transparent);
+}
+
+.notice--ok {
+  border-color: var(--color-status-live);
+  background-color: color-mix(in srgb, var(--color-status-live) 8%, transparent);
+}
+
+/* ---------------------------------------------------------- audit log */
+
+.audit {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.audit__row {
+  display: grid;
+  gap: 2px;
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-small);
+}
+
+.audit__row:last-child {
+  border-bottom: 0;
+}
+
+.audit__when {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.audit__summary {
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------- layout */
+
+@media (min-width: 1024px) {
+  .admin-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    gap: var(--space-8);
+    align-items: start;
+  }
+}
+
+/* ------------------------------------------------------ penolakan izin */
+
+.forbidden {
+  max-width: 46rem;
+  padding: var(--space-8);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+.forbidden h1 {
+  margin-top: var(--space-2);
+  font-size: var(--text-h3);
+}
+
+.forbidden p {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.forbidden__next {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
