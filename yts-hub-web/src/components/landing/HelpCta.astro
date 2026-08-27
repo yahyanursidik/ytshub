@@ -1,0 +1,62 @@
+---
+/**
+ * Help CTA — 03-LANDING-PAGE-UIUX.md §12.
+ * Copy persis dari spesifikasi. Dua CTA berbeda tujuan, bukan duplikasi.
+ */
+---
+
+<section class="help" aria-labelledby="help-title">
+  <div class="container help__inner">
+    <div>
+      <h2 id="help-title">Masih butuh bantuan?</h2>
+      <p>Temukan jawaban di FAQ atau hubungi kanal resmi YTS.</p>
+    </div>
+    <div class="help__actions">
+      <a class="btn btn--primary" href="/hubungi-kami">Hubungi Kami</a>
+      <a class="btn btn--secondary" href="/faq">Lihat FAQ</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .help {
+    padding-block: var(--section-gap);
+    background-color: var(--color-surface-brand);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .help__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6) var(--space-8);
+  }
+
+  .help h2 {
+    font-size: var(--text-h2);
+  }
+
+  .help p {
+    max-width: 46ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-body-l);
+  }
+
+  .help__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  @media (max-width: 520px) {
+    .help__actions {
+      width: 100%;
+    }
+
+    .help__actions .btn {
+      flex: 1 1 100%;
+    }
+  }
+</style>

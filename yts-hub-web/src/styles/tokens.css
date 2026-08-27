@@ -1,0 +1,120 @@
+/*
+ * YTS Hub — Design Tokens
+ * Sumber: 04-DESIGN-SYSTEM.md (locked direction).
+ * Aturan: component TIDAK BOLEH memakai warna hardcoded. Selalu lewat token semantik.
+ */
+
+:root {
+  /* ---- Color: raw palette (jangan dipakai langsung di component) ---- */
+  --c-paper: #f7f5ef;
+  --c-surface: #fffefa;
+  --c-surface-muted: #f0eee6;
+  --c-ink: #1f2721;
+  --c-ink-muted: #5e665e; /* diturunkan dari #687068 agar tetap AA (>=4.5) di atas
+     --surface-muted dan --brand-soft, bukan hanya di atas --paper */
+  --c-line: #dddcd4;
+  --c-brand: #405a43;
+  --c-brand-strong: #304733;
+  --c-brand-soft: #e5ede4;
+  --c-accent-warm: #b58c45;
+  --c-danger: #a4483e;
+  --c-success: #4e7655;
+
+  /* ---- Color: semantic ---- */
+  --color-page: var(--c-paper);
+  --color-surface: var(--c-surface);
+  --color-surface-muted: var(--c-surface-muted);
+  --color-surface-brand: var(--c-brand-soft);
+
+  --color-text: var(--c-ink);
+  --color-text-muted: var(--c-ink-muted);
+  --color-text-on-brand: #fffefa;
+  --color-text-link: var(--c-brand-strong);
+
+  --color-border: var(--c-line);
+  --color-border-strong: #c9c7bd;
+
+  --color-brand: var(--c-brand);
+  --color-brand-strong: var(--c-brand-strong);
+  --color-accent: var(--c-accent-warm);
+
+  --color-status-live: var(--c-success);
+  --color-status-soon: var(--c-accent-warm);
+  --color-status-done: var(--c-ink-muted);
+  --color-danger: var(--c-danger);
+
+  --color-focus: #1f4f8f;
+
+  /* ---- Typography ---- */
+  --font-display:
+    'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman',
+    serif;
+  --font-ui:
+    Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+
+  /* Scale — clamp() dipakai agar tidak perlu banyak breakpoint font-size */
+  --text-display: clamp(2.25rem, 1.62rem + 2.75vw, 3.375rem); /* 36 → 54 — rentang H1 di 04-DESIGN-SYSTEM §4;
+     sengaja tidak dinaikkan ke Display XL agar search tetap focal point hero (05-HALLMARK §6) */
+  --text-h1: clamp(2rem, 1.45rem + 2.4vw, 3.25rem); /* 32 → 52 */
+  --text-h2: clamp(1.5rem, 1.24rem + 1.15vw, 2.125rem); /* 24 → 34 */
+  --text-h3: clamp(1.25rem, 1.12rem + 0.55vw, 1.5rem); /* 20 → 24 */
+  --text-body-l: 1.125rem; /* 18 */
+  --text-body: 1rem; /* 16 */
+  --text-small: 0.875rem; /* 14 */
+  --text-meta: 0.8125rem; /* 13 */
+
+  --leading-display: 1.04;
+  --leading-heading: 1.15;
+  --leading-body: 1.55;
+  --leading-tight: 1.4;
+
+  --tracking-display: -0.02em;
+  --tracking-heading: -0.012em;
+  --tracking-meta: 0.02em;
+
+  /* ---- Spacing (4px base) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  --section-gap: clamp(3rem, 2rem + 4.5vw, 5.5rem); /* 48 → 88 */
+
+  /* ---- Layout ---- */
+  --container-max: 1200px;
+  --container-narrow: 760px;
+  --gutter: clamp(1rem, 0.5rem + 2vw, 2.5rem);
+
+  /* ---- Radius ---- */
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --radius-panel: 18px;
+
+  /* ---- Elevation — hanya untuk elevation nyata ---- */
+  --shadow-popover: 0 1px 2px rgb(31 39 33 / 0.06), 0 8px 24px -8px rgb(31 39 33 / 0.16);
+  --shadow-header: 0 1px 0 var(--color-border);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.2, 0, 0.1, 1);
+  --dur-fast: 150ms;
+  --dur: 200ms;
+  --dur-slow: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

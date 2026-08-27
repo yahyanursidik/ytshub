@@ -1,0 +1,202 @@
+---
+/**
+ * Program Aktif — 03-LANDING-PAGE-UIUX.md §9. Maksimal 3-4 highlight.
+ * Macrostructure asimetris: satu program utama + sisanya sebagai baris ringkas.
+ * Status ditandai teks + titik, tidak hanya warna (09-A11Y §3).
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { activePrograms } from '@/data/fixtures';
+
+const statusLabel: Record<string, string> = {
+  berjalan: 'Berjalan',
+  'akan-datang': 'Akan datang',
+  selesai: 'Selesai',
+};
+
+const [lead, ...rest] = activePrograms;
+---
+
+{
+  lead && (
+    <section class="section" aria-labelledby="program-title">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-head__intro">
+            <span class="eyebrow">Program</span>
+            <h2 id="program-title">Program yang sedang berjalan</h2>
+          </div>
+          <a class="link-action" href="/program">
+            Semua program
+            <Icon name="arrow-right" size={16} />
+          </a>
+        </div>
+
+        <div class="programs">
+          <article class="program-lead">
+            <p class="program__meta">
+              <span class="status" data-status={lead.programStatus}>
+                <span class="status__dot" aria-hidden="true" />
+                {statusLabel[lead.programStatus]}
+              </span>
+              <span class="program__category">{lead.category}</span>
+            </p>
+            <h3>
+              <a href={`/program/${lead.slug}`}>{lead.title}</a>
+            </h3>
+            <p class="program-lead__summary">{lead.summary}</p>
+            {lead.scheduleSummary && <p class="program__schedule">{lead.scheduleSummary}</p>}
+          </article>
+
+          <ul class="program-rest">
+            {rest.map((program) => (
+              <li>
+                <article>
+                  <p class="program__meta">
+                    <span class="status" data-status={program.programStatus}>
+                      <span class="status__dot" aria-hidden="true" />
+                      {statusLabel[program.programStatus]}
+                    </span>
+                    <span class="program__category">{program.category}</span>
+                  </p>
+                  <h3>
+                    <a href={`/program/${program.slug}`}>{program.title}</a>
+                  </h3>
+                  <p class="program__summary">{program.summary}</p>
+                  {program.scheduleSummary && (
+                    <p class="program__schedule">{program.scheduleSummary}</p>
+                  )}
+                </article>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .programs {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  /* ---- Lead ---- */
+  .program-lead {
+    padding: var(--space-6);
+    background-color: var(--color-surface-brand);
+    border-radius: var(--radius-panel);
+  }
+
+  .program-lead h3 {
+    margin-top: var(--space-3);
+    font-size: var(--text-h2);
+  }
+
+  .program-lead__summary {
+    max-width: 46ch;
+    margin-top: var(--space-3);
+    color: var(--color-text);
+    font-size: var(--text-body-l);
+  }
+
+  /* ---- Daftar sisanya ---- */
+  .program-rest {
+    display: grid;
+    align-content: start;
+  }
+
+  .program-rest li {
+    padding-block: var(--space-6);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .program-rest li:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .program-rest h3 {
+    margin-top: var(--space-2);
+  }
+
+  .program__summary {
+    max-width: 52ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  h3 a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  h3 a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
+  }
+
+  /* ---- Meta & status ---- */
+  .program__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .status__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--color-status-done);
+  }
+
+  .status[data-status='berjalan'] .status__dot {
+    background-color: var(--color-status-live);
+  }
+
+  .status[data-status='akan-datang'] .status__dot {
+    background-color: var(--color-status-soon);
+  }
+
+  .program__category::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 0.85em;
+    margin-inline-end: var(--space-3);
+    background-color: var(--color-border-strong);
+    vertical-align: -0.1em;
+  }
+
+  .program__schedule {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  @media (min-width: 900px) {
+    .programs {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: var(--space-16);
+      align-items: start;
+    }
+
+    .program-lead {
+      padding: var(--space-8);
+    }
+  }
+</style>

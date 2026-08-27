@@ -1,0 +1,196 @@
+---
+/**
+ * Hero — 03-LANDING-PAGE-UIUX.md §4-5.
+ * Satu focal point per viewport: search. Headline tidak boleh mengalahkan search.
+ * Latar memakai garis lembut CSS (bukan bitmap, bukan blob, bukan gradient generik).
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { popularQueries } from '@/data/fixtures';
+---
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero__texture" aria-hidden="true"></div>
+
+  <div class="container hero__inner">
+    <div class="hero__copy">
+      <h1 id="hero-title">Informasi &amp; Layanan untuk Kebaikan Bersama.</h1>
+      <p>Temukan program, layanan, unit, dan aplikasi YTS dengan cepat dan mudah.</p>
+    </div>
+
+    <form class="search" action="/cari" method="get" role="search">
+      <label class="visually-hidden" for="q">Cari informasi dan layanan YTS</label>
+      <div class="search__field">
+        <Icon name="search" size={22} class="search__icon" />
+        <input
+          type="search"
+          id="q"
+          name="q"
+          placeholder="Cari program, layanan, FAQ, atau aplikasi YTS"
+          autocomplete="off"
+          enterkeyhint="search"
+        />
+        <button type="submit" class="btn btn--primary search__submit">Cari</button>
+      </div>
+    </form>
+
+    <p class="hero__queries">
+      <span>Sering dicari:</span>
+      {
+        popularQueries.map((q, i) => (
+          <>
+            {i > 0 && (
+              <span aria-hidden="true" class="hero__sep">
+                ·
+              </span>
+            )}
+            <a href={`/cari?q=${encodeURIComponent(q)}`}>{q}</a>
+          </>
+        ))
+      }
+    </p>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    background-color: var(--color-page);
+    padding-block: clamp(2.25rem, 1.6rem + 3vw, 4rem) clamp(2rem, 1.4rem + 2.4vw, 3rem);
+    overflow: hidden;
+  }
+
+  /* Garis horizontal sangat halus — tekstur kertas, tanpa makna dekoratif palsu. */
+  .hero__texture {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--color-border) 0 1px,
+      transparent 1px 13px
+    );
+    opacity: 0.32;
+    mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 72%);
+    pointer-events: none;
+  }
+
+  .hero__inner {
+    position: relative;
+  }
+
+  .hero__copy h1 {
+    max-width: 19ch;
+    font-size: var(--text-display);
+    line-height: var(--leading-display);
+  }
+
+  .hero__copy p {
+    max-width: 46ch;
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-body-l);
+  }
+
+  /* ---- Search: focal point ---- */
+  .search {
+    margin-top: clamp(1.75rem, 1.2rem + 2.4vw, 2.75rem);
+    max-width: 720px;
+  }
+
+  .search__field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    background-color: var(--color-surface);
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+    padding: var(--space-2);
+    padding-inline-start: var(--space-4);
+    transition: border-color var(--dur) var(--ease);
+  }
+
+  .search__field:focus-within {
+    border-color: var(--color-brand);
+  }
+
+  /* Fokus ditampilkan pada field, bukan input telanjang di dalamnya. */
+  .search__field:focus-within {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* :global() wajib: SVG dirender oleh komponen Icon di luar scope file ini. */
+  .search__field :global(.search__icon) {
+    flex: none;
+    color: var(--color-text-muted);
+  }
+
+  .search__field input {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    padding: 0;
+    background: none;
+    border: 0;
+    font-size: var(--text-body-l);
+  }
+
+  .search__field input:focus-visible {
+    outline: none;
+  }
+
+  .search__field input::-webkit-search-cancel-button {
+    cursor: pointer;
+  }
+
+  .search__submit {
+    flex: none;
+    min-height: 48px;
+  }
+
+  /* ---- Query populer: tekstual, bukan chip ---- */
+  .hero__queries {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .hero__queries a {
+    color: var(--color-text-link);
+    text-decoration: underline;
+    text-decoration-color: var(--color-border-strong);
+  }
+
+  .hero__queries a:hover {
+    text-decoration-color: currentColor;
+  }
+
+  .hero__sep {
+    color: var(--color-border-strong);
+  }
+
+  @media (max-width: 600px) {
+    .hero__copy h1 {
+      max-width: 13ch;
+    }
+
+    .search__field {
+      flex-wrap: wrap;
+      padding-inline-start: var(--space-3);
+    }
+
+    .search__field input {
+      flex: 1 1 8rem;
+      min-height: 44px;
+      font-size: var(--text-body);
+    }
+
+    .search__submit {
+      min-height: 44px;
+      padding-inline: var(--space-4);
+    }
+  }
+</style>

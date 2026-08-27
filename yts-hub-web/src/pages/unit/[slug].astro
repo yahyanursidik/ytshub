@@ -1,0 +1,19 @@
+---
+/** Detail unit. Isi pada Fase 3. */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
+import { featuredUnits } from '@/data/fixtures';
+
+export function getStaticPaths() {
+  return featuredUnits.map((unit) => ({
+    params: { slug: unit.slug },
+    props: { title: unit.title, summary: unit.summary },
+  }));
+}
+
+const { title, summary } = Astro.props;
+---
+
+<BaseLayout title={title} description={summary} noindex>
+  <PhasePlaceholder title={title} phase="Fase 3 — Public Directory Routes" describes={summary} />
+</BaseLayout>

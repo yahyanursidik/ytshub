@@ -1,0 +1,89 @@
+---
+/**
+ * PhasePlaceholder — halaman yang route-nya sudah ditetapkan (02-INFORMATION-ARCHITECTURE.md)
+ * tapi isinya dikerjakan pada fase berikutnya.
+ * Ada supaya landing page tidak punya dead link (12-ACCEPTANCE-CHECKLIST — "tidak ada dead-end page").
+ * Halaman ini noindex dan menyatakan statusnya dengan jujur, bukan konten palsu.
+ */
+import Icon from '@/components/ui/Icon.astro';
+
+interface Props {
+  title: string;
+  phase: string;
+  describes: string;
+}
+
+const { title, phase, describes } = Astro.props;
+---
+
+<section class="section placeholder">
+  <div class="container placeholder__inner">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">Beranda</a></li>
+        <li aria-current="page">{title}</li>
+      </ol>
+    </nav>
+
+    <h1>{title}</h1>
+    <p class="placeholder__lead">{describes}</p>
+
+    <p class="placeholder__status">
+      Halaman ini belum berisi data. Implementasinya dijadwalkan pada <strong>{phase}</strong> sesuai
+      <code>10-DEVELOPMENT-PLAN.md</code>.
+    </p>
+
+    <p>
+      <a class="link-action" href="/">
+        Kembali ke beranda
+        <Icon name="arrow-right" size={16} />
+      </a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .placeholder__inner {
+    max-width: var(--container-narrow);
+  }
+
+  .crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .crumbs li + li::before {
+    content: '/';
+    margin-inline-end: var(--space-2);
+    color: var(--color-border-strong);
+  }
+
+  .placeholder__lead {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-body-l);
+  }
+
+  .placeholder__status {
+    margin-top: var(--space-8);
+    padding: var(--space-4) var(--space-6);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-inline-start: 3px solid var(--color-accent);
+    border-radius: var(--radius-card);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .placeholder__status code {
+    font-size: 0.92em;
+  }
+
+  .placeholder__inner > p:last-child {
+    margin-top: var(--space-8);
+  }
+</style>

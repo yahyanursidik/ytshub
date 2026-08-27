@@ -1,0 +1,98 @@
+---
+/**
+ * FaqAccordion — 09-ACCESSIBILITY-PERFORMANCE-SEO.md §2: <button> + aria-expanded,
+ * bukan <details> yang di-styling.
+ *
+ * Sengaja TIDAK memakai React island. Landing page hanya butuh buka/tutup panel;
+ * memuat runtime React (~184 KB) untuk itu melanggar budget hydration di §5.
+ * React tetap terpasang di proyek untuk modul yang benar-benar interaktif pada fase
+ * berikutnya (search autocomplete, admin).
+ *
+ * Tanpa JS: seluruh panel tetap terbaca (script yang menutupnya baru berjalan setelah
+ * hydrate), jadi konten tidak pernah hilang bagi crawler maupun pengguna.
+ */
+export interface FaqItem {
+  id: string;
+  slug: string;
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: FaqItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<ul class="faq-list" data-faq-accordion>
+  {
+    items.map((item, index) => (
+      <li class="faq-item">
+        <h3 class="faq-item__heading">
+          <button
+            type="button"
+            id={`faq-btn-${item.id}`}
+            class="faq-item__button"
+            aria-expanded={index === 0 ? 'true' : 'false'}
+            aria-controls={`faq-panel-${item.id}`}
+          >
+            <span>{item.question}</span>
+            <svg
+              class="faq-item__chevron"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="m6 9.5 6 6 6-6" />
+            </svg>
+          </button>
+        </h3>
+        <div id={`faq-panel-${item.id}`} role="region" aria-labelledby={`faq-btn-${item.id}`}>
+          <div class="faq-item__answer">
+            <p>{item.answer}</p>
+            <a class="link-action" href={`/faq/${item.slug}`}>
+              Buka halaman FAQ ini
+            </a>
+          </div>
+        </div>
+      </li>
+    ))
+  }
+</ul>
+
+<script>
+  const list = document.querySelector<HTMLElement>('[data-faq-accordion]');
+
+  if (list) {
+    const buttons = [...list.querySelectorAll<HTMLButtonElement>('.faq-item__button')];
+
+    const panelOf = (button: HTMLButtonElement) =>
+      document.getElementById(button.getAttribute('aria-controls') ?? '');
+
+    const setOpen = (button: HTMLButtonElement, open: boolean) => {
+      button.setAttribute('aria-expanded', String(open));
+      const panel = panelOf(button);
+      if (panel) panel.hidden = !open;
+    };
+
+    // Kondisi awal: hanya item pertama terbuka. Dijalankan di klien supaya
+    // tanpa JS seluruh jawaban tetap tampil.
+    buttons.forEach((button) => setOpen(button, button.getAttribute('aria-expanded') === 'true'));
+
+    list.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.faq-item__button');
+      if (!button) return;
+      const wasOpen = button.getAttribute('aria-expanded') === 'true';
+      buttons.forEach((other) => setOpen(other, false));
+      setOpen(button, !wasOpen);
+    });
+  }
+</script>

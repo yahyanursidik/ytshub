@@ -1,0 +1,19 @@
+---
+/** Detail layanan — struktur route sesuai 02-INFORMATION-ARCHITECTURE.md §8. Isi pada Fase 3. */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
+import { popularServices } from '@/data/fixtures';
+
+export function getStaticPaths() {
+  return popularServices.map((service) => ({
+    params: { slug: service.slug },
+    props: { title: service.title, summary: service.summary },
+  }));
+}
+
+const { title, summary } = Astro.props;
+---
+
+<BaseLayout title={title} description={summary} noindex>
+  <PhasePlaceholder title={title} phase="Fase 3 — Public Directory Routes" describes={summary} />
+</BaseLayout>

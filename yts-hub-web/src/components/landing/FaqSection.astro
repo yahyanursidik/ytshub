@@ -1,0 +1,120 @@
+---
+/**
+ * FAQ — 03-LANDING-PAGE-UIUX.md §10. Compact list/accordion, diprioritaskan
+ * berdasarkan yang paling sering dicari.
+ * FAQ di landing page hanya highlight; entity sebenarnya ada di FAQ Center (07-SEARCH §8).
+ */
+import Icon from '@/components/ui/Icon.astro';
+import FaqAccordion from '@/components/landing/FaqAccordion.astro';
+import { popularFaqs } from '@/data/fixtures';
+
+const items = popularFaqs.map((faq) => ({
+  id: faq.id,
+  slug: faq.slug,
+  question: faq.question,
+  answer: faq.answer,
+}));
+---
+
+<section class="section faq" aria-labelledby="faq-title">
+  <div class="container faq__inner">
+    <div class="faq__intro">
+      <span class="eyebrow">FAQ</span>
+      <h2 id="faq-title">Pertanyaan yang paling sering dicari</h2>
+      <p>Jawaban singkat untuk hal yang paling sering ditanyakan ke admin.</p>
+      <a class="link-action" href="/faq">
+        Lihat semua FAQ
+        <Icon name="arrow-right" size={16} />
+      </a>
+    </div>
+
+    <div class="faq__body">
+      <FaqAccordion items={items} />
+    </div>
+  </div>
+</section>
+
+<style is:global>
+  /* Global karena markup accordion berada di komponen anak (FaqAccordion.astro). */
+  .faq__body .faq-list {
+    border-top: 1px solid var(--color-border-strong);
+  }
+
+  .faq__body .faq-item {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .faq__body .faq-item__heading {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: inherit;
+    letter-spacing: normal;
+  }
+
+  .faq__body .faq-item__button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    width: 100%;
+    min-height: 56px;
+    padding-block: var(--space-4);
+    background: none;
+    border: 0;
+    text-align: start;
+    font-size: var(--text-body-l);
+    font-weight: 500;
+    line-height: var(--leading-tight);
+    color: var(--color-text);
+    cursor: pointer;
+  }
+
+  .faq__body .faq-item__button:hover {
+    color: var(--color-brand-strong);
+  }
+
+  .faq__body .faq-item__chevron {
+    flex: none;
+    color: var(--color-text-muted);
+    transition: rotate var(--dur) var(--ease);
+  }
+
+  .faq__body .faq-item__button[aria-expanded='true'] .faq-item__chevron {
+    rotate: 180deg;
+  }
+
+  .faq__body .faq-item__answer {
+    max-width: 62ch;
+    padding-block: 0 var(--space-6);
+    color: var(--color-text-muted);
+  }
+
+  .faq__body .faq-item__answer .link-action {
+    margin-top: var(--space-3);
+  }
+</style>
+
+<style>
+  .faq__inner {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  .faq__intro p {
+    max-width: 38ch;
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  .faq__intro .link-action {
+    margin-top: var(--space-4);
+  }
+
+  @media (min-width: 900px) {
+    .faq__inner {
+      grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+      gap: var(--space-16);
+      align-items: start;
+    }
+  }
+</style>

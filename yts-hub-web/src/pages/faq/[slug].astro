@@ -1,0 +1,19 @@
+---
+/** Detail FAQ. Isi pada Fase 4 (07-SEARCH-AND-FAQ.md §9). */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
+import { popularFaqs } from '@/data/fixtures';
+
+export function getStaticPaths() {
+  return popularFaqs.map((faq) => ({
+    params: { slug: faq.slug },
+    props: { title: faq.question, summary: faq.summary },
+  }));
+}
+
+const { title, summary } = Astro.props;
+---
+
+<BaseLayout title={title} description={summary} noindex>
+  <PhasePlaceholder title={title} phase="Fase 4 — FAQ & Search" describes={summary} />
+</BaseLayout>

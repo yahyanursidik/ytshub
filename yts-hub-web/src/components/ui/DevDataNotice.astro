@@ -1,0 +1,38 @@
+---
+/**
+ * Penanda bahwa konten yang tampil adalah fixture pengembangan, bukan data resmi YTS.
+ * Wajib ada selama Fase 1 (05-HALLMARK-ANTI-SLOP.md §7 — no fake data exposed as real).
+ * Otomatis hilang pada production build.
+ */
+const show = import.meta.env.DEV;
+---
+
+{
+  show && (
+    <div class="dev-notice" role="note">
+      <p>
+        <strong>Data contoh.</strong> Isi halaman ini adalah fixture pengembangan, bukan informasi
+        resmi Yayasan Tarbiyah Sunnah. Diganti dengan data asli pada Fase 2.
+      </p>
+    </div>
+  )
+}
+
+<style>
+  .dev-notice {
+    background-color: #2b2f2c;
+    color: #f0eee6;
+    font-size: var(--text-meta);
+    text-align: center;
+  }
+
+  .dev-notice p {
+    max-width: var(--container-max);
+    margin-inline: auto;
+    padding: var(--space-2) var(--gutter);
+  }
+
+  .dev-notice strong {
+    color: #e6c98a;
+  }
+</style>

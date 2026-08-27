@@ -1,0 +1,306 @@
+---
+/**
+ * SiteHeader — 03-LANDING-PAGE-UIUX.md §3 dan 02-INFORMATION-ARCHITECTURE.md §2-3.
+ * Active nav ditandai secara tenang (rule di bawah label), bukan pill besar per item.
+ * Menu mobile memakai panel dengan aria-expanded, bukan library.
+ */
+import Icon from '@/components/ui/Icon.astro';
+
+const nav = [
+  { label: 'Beranda', href: '/' },
+  { label: 'Unit', href: '/unit' },
+  { label: 'Program', href: '/program' },
+  { label: 'Layanan', href: '/layanan' },
+  { label: 'Event', href: '/event' },
+  { label: 'FAQ', href: '/faq' },
+  { label: 'Hubungi Kami', href: '/hubungi-kami' },
+];
+
+const path = Astro.url.pathname;
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+
+<header class="header" data-site-header>
+  <div class="container header__bar">
+    <a class="brand" href="/">
+      <span class="brand__mark" aria-hidden="true">YTS</span>
+      <span class="brand__name">Hub</span>
+      <span class="visually-hidden">— beranda</span>
+    </a>
+
+    <nav class="nav-desktop" aria-label="Navigasi utama">
+      <ul>
+        {
+          nav.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class:list={['nav-desktop__link', { 'is-active': isActive(item.href) }]}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="header__actions">
+      <a class="btn btn--secondary header__cta" href="/layanan/donasi-online">Dukung YTS</a>
+      <button
+        type="button"
+        class="menu-toggle"
+        aria-expanded="false"
+        aria-controls="menu-mobile"
+        data-menu-toggle
+      >
+        <Icon name="menu" size={22} class="menu-toggle__open" />
+        <Icon name="close" size={22} class="menu-toggle__close" />
+        <span class="visually-hidden" data-menu-label>Buka menu</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="menu-mobile" id="menu-mobile" hidden data-menu-panel>
+    <nav class="container" aria-label="Navigasi utama (mobile)">
+      <ul>
+        {
+          nav.map((item) => (
+            <li>
+              <a href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
+                <span>{item.label}</span>
+                <Icon name="arrow-right" size={18} />
+              </a>
+            </li>
+          ))
+        }
+        <li class="menu-mobile__cta">
+          <a class="btn btn--primary" href="/layanan/donasi-online">Dukung YTS</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const header = document.querySelector<HTMLElement>('[data-site-header]');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const panel = document.querySelector<HTMLElement>('[data-menu-panel]');
+  const label = document.querySelector<HTMLElement>('[data-menu-label]');
+
+  function setMenu(open: boolean) {
+    if (!toggle || !panel) return;
+    toggle.setAttribute('aria-expanded', String(open));
+    panel.hidden = !open;
+    document.body.style.overflow = open ? 'hidden' : '';
+    if (label) label.textContent = open ? 'Tutup menu' : 'Buka menu';
+  }
+
+  toggle?.addEventListener('click', () => {
+    setMenu(toggle.getAttribute('aria-expanded') !== 'true');
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
+      setMenu(false);
+      toggle.focus();
+    }
+  });
+
+  const mq = window.matchMedia('(min-width: 1024px)');
+  mq.addEventListener('change', (event) => {
+    if (event.matches) setMenu(false);
+  });
+
+  // Surface header menjadi lebih solid setelah scroll — tanpa animasi berat.
+  const onScroll = () => header?.toggleAttribute('data-scrolled', window.scrollY > 8);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+</script>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background-color: color-mix(in srgb, var(--color-page) 88%, transparent);
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--dur) var(--ease);
+  }
+
+  .header[data-scrolled] {
+    background-color: var(--color-page);
+    border-bottom-color: var(--color-border);
+  }
+
+  .header__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    min-height: 68px;
+  }
+
+  /* ---- Brand ---- */
+  .brand {
+    display: inline-flex;
+    gap: 0.4ch;
+    color: var(--color-text);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-decoration: none;
+    margin-inline-end: auto;
+    /* 09-A11Y §2 — logo adalah control utama, bukan link inline. */
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .brand__mark {
+    color: var(--color-brand);
+  }
+
+  .brand__name {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  /* ---- Desktop nav ---- */
+  .nav-desktop {
+    display: none;
+  }
+
+  .nav-desktop ul {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+  }
+
+  .nav-desktop__link {
+    position: relative;
+    display: inline-block;
+    padding-block: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    font-weight: 500;
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease);
+  }
+
+  .nav-desktop__link:hover {
+    color: var(--color-text);
+  }
+
+  .nav-desktop__link.is-active {
+    color: var(--color-text);
+  }
+
+  .nav-desktop__link.is-active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1.5px;
+    background-color: var(--color-brand);
+  }
+
+  /* ---- Actions ---- */
+  .header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .header__cta {
+    display: none;
+    min-height: 40px;
+    padding-inline: var(--space-4);
+    font-size: var(--text-small);
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: none;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+    cursor: pointer;
+  }
+
+  /* :global() wajib: SVG dirender oleh komponen Icon, jadi tidak ikut scope file ini. */
+  .menu-toggle :global(.menu-toggle__close) {
+    display: none;
+  }
+
+  .menu-toggle[aria-expanded='true'] :global(.menu-toggle__open) {
+    display: none;
+  }
+
+  .menu-toggle[aria-expanded='true'] :global(.menu-toggle__close) {
+    display: block;
+  }
+
+  /* ---- Mobile panel ---- */
+  .menu-mobile {
+    border-top: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    max-height: calc(100dvh - 68px);
+    overflow-y: auto;
+    padding-block: var(--space-2) var(--space-6);
+  }
+
+  .menu-mobile a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    min-height: 52px;
+    padding-block: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    font-size: var(--text-body-l);
+    text-decoration: none;
+  }
+
+  .menu-mobile a[aria-current='page'] {
+    color: var(--color-brand-strong);
+    font-weight: 550;
+  }
+
+  .menu-mobile a :global(svg) {
+    color: var(--color-text-muted);
+  }
+
+  .menu-mobile__cta {
+    margin-top: var(--space-6);
+  }
+
+  .menu-mobile__cta a {
+    border-bottom: 0;
+    justify-content: center;
+    color: var(--color-text-on-brand);
+    font-size: var(--text-body);
+  }
+
+  @media (min-width: 1024px) {
+    .nav-desktop,
+    .header__cta {
+      display: block;
+    }
+
+    .menu-toggle,
+    .menu-mobile {
+      display: none;
+    }
+
+    .header__bar {
+      min-height: 76px;
+      gap: var(--space-8);
+    }
+  }
+</style>

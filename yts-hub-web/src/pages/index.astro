@@ -1,0 +1,31 @@
+---
+/**
+ * Beranda — narrative sesuai 03-LANDING-PAGE-UIUX.md §2:
+ * header → hero/search → quick access → layanan populer → jelajahi YTS →
+ * program aktif → FAQ → aplikasi & website → help CTA → footer.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Hero from '@/components/landing/Hero.astro';
+import QuickAccess from '@/components/landing/QuickAccess.astro';
+import PopularServices from '@/components/landing/PopularServices.astro';
+import ExploreYts from '@/components/landing/ExploreYts.astro';
+import ActivePrograms from '@/components/landing/ActivePrograms.astro';
+import FaqSection from '@/components/landing/FaqSection.astro';
+import AppsAndSites from '@/components/landing/AppsAndSites.astro';
+import HelpCta from '@/components/landing/HelpCta.astro';
+---
+
+<BaseLayout
+  title="YTS Hub"
+  description="Pusat informasi dan layanan resmi Yayasan Tarbiyah Sunnah. Temukan program, layanan, unit, dan aplikasi YTS dengan cepat."
+  canonicalPath="/"
+>
+  <Hero />
+  <QuickAccess />
+  <PopularServices />
+  <ExploreYts />
+  <ActivePrograms />
+  <FaqSection />
+  <AppsAndSites />
+  <HelpCta />
+</BaseLayout>

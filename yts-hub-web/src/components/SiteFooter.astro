@@ -1,0 +1,164 @@
+---
+/**
+ * SiteFooter — 03-LANDING-PAGE-UIUX.md §13. Ringkas; hindari footer 40+ link.
+ */
+const groups = [
+  {
+    title: 'Jelajahi',
+    links: [
+      { label: 'Unit', href: '/unit' },
+      { label: 'Program', href: '/program' },
+      { label: 'Layanan', href: '/layanan' },
+      { label: 'Event', href: '/event' },
+    ],
+  },
+  {
+    title: 'Informasi',
+    links: [
+      { label: 'FAQ', href: '/faq' },
+      { label: 'Aplikasi & Website', href: '/aplikasi' },
+      { label: 'Tentang YTS Hub', href: '/tentang' },
+    ],
+  },
+  {
+    title: 'Bantuan',
+    links: [
+      { label: 'Hubungi Kami', href: '/hubungi-kami' },
+      { label: 'Dukung YTS', href: '/layanan/donasi-online' },
+    ],
+  },
+];
+
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="container footer__inner">
+    <div class="footer__brand">
+      <a class="footer__logo" href="/">
+        <span aria-hidden="true">YTS</span>
+        <span class="footer__logo-name">Hub</span>
+        <span class="visually-hidden">— beranda</span>
+      </a>
+      <p>
+        Pusat informasi dan layanan resmi Yayasan Tarbiyah Sunnah. Satu tempat untuk menemukan
+        program, layanan, unit, dan aplikasi YTS.
+      </p>
+    </div>
+
+    <nav class="footer__nav" aria-label="Navigasi footer">
+      {
+        groups.map((group) => (
+          <div class="footer__group">
+            <h2>{group.title}</h2>
+            <ul>
+              {group.links.map((link) => (
+                <li>
+                  <a href={link.href}>{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </nav>
+  </div>
+
+  <div class="container footer__legal">
+    <p>&copy; {year} Yayasan Tarbiyah Sunnah</p>
+    <p class="footer__note">
+      Informasi resmi diperbarui melalui unit pemilik masing-masing konten.
+    </p>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    margin-top: var(--section-gap);
+    padding-block: var(--space-12) var(--space-8);
+    background-color: var(--color-surface-muted);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--text-small);
+  }
+
+  .footer__inner {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  .footer__logo {
+    display: inline-block;
+    color: var(--color-text);
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .footer__logo-name {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .footer__brand p {
+    max-width: 42ch;
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    line-height: var(--leading-body);
+  }
+
+  .footer__nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-8) var(--space-6);
+  }
+
+  .footer__group h2 {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .footer__group ul {
+    margin-top: var(--space-3);
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .footer__group a {
+    display: inline-block;
+    padding-block: var(--space-1);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .footer__group a:hover {
+    text-decoration: underline;
+  }
+
+  .footer__legal {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-6);
+    margin-top: var(--space-12);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .footer__note {
+    max-width: 48ch;
+  }
+
+  @media (min-width: 860px) {
+    .footer__inner {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+      gap: var(--space-16);
+    }
+  }
+</style>

@@ -1,0 +1,145 @@
+---
+/**
+ * Layanan Populer — 03-LANDING-PAGE-UIUX.md §7.
+ * Macrostructure: card grid (satu-satunya section landing yang memakai card grid penuh).
+ * Mobile: horizontal snap agar tidak menjadi tumpukan card panjang.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { popularServices } from '@/data/fixtures';
+---
+
+<section class="section" aria-labelledby="layanan-title">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-head__intro">
+        <span class="eyebrow">Layanan</span>
+        <h2 id="layanan-title">Layanan yang paling sering dicari</h2>
+        <p>Mulai dari sini bila Anda sudah tahu tindakan yang ingin dilakukan.</p>
+      </div>
+      <a class="link-action" href="/layanan">
+        Semua layanan
+        <Icon name="arrow-right" size={16} />
+      </a>
+    </div>
+
+    <ul class="services">
+      {
+        popularServices.map((service) => (
+          <li class="services__item">
+            <a
+              class="service-card"
+              href={service.isExternal ? service.ctaUrl : service.ctaUrl}
+              rel={service.isExternal ? 'noopener' : undefined}
+              target={service.isExternal ? '_blank' : undefined}
+            >
+              <span class="service-card__category">{service.category}</span>
+              <span class="service-card__title">{service.title}</span>
+              <span class="service-card__summary">{service.summary}</span>
+              <span class="service-card__cta">
+                {service.ctaLabel}
+                <Icon name={service.isExternal ? 'external' : 'arrow-right'} size={15} />
+                {service.isExternal && (
+                  <span class="visually-hidden">(membuka sistem lain di tab baru)</span>
+                )}
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .services {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(230px, 78%);
+    gap: var(--space-3);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-block-end: var(--space-3);
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    scrollbar-width: thin;
+  }
+
+  .services__item {
+    scroll-snap-align: start;
+  }
+
+  .service-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    height: 100%;
+    padding: var(--space-4);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    color: var(--color-text);
+    text-decoration: none;
+    transition:
+      border-color var(--dur) var(--ease),
+      translate var(--dur) var(--ease);
+  }
+
+  .service-card:hover {
+    border-color: var(--color-brand);
+    color: var(--color-text);
+    translate: 0 -2px;
+  }
+
+  .service-card__category {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .service-card__title {
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    font-weight: 600;
+    line-height: var(--leading-heading);
+    letter-spacing: var(--tracking-heading);
+  }
+
+  .service-card__summary {
+    flex: 1;
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    line-height: var(--leading-body);
+  }
+
+  .service-card__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    color: var(--color-text-link);
+    font-size: var(--text-small);
+    font-weight: 550;
+  }
+
+  @media (min-width: 700px) {
+    .services {
+      grid-auto-flow: row;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-4);
+      overflow: visible;
+      margin-inline: 0;
+      padding-inline: 0;
+    }
+  }
+
+  @media (min-width: 1080px) {
+    .services {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .service-card {
+      padding: var(--space-6) var(--space-4);
+    }
+  }
+</style>

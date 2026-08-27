@@ -1,0 +1,129 @@
+---
+/**
+ * Jelajahi YTS — 03-LANDING-PAGE-UIUX.md §8.
+ * Bukan logo-wall dan bukan card grid: kontennya daftar, maka bentuknya daftar padat
+ * (05-HALLMARK-ANTI-SLOP.md §6 — dense list lebih tepat daripada card bila kontennya list).
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { featuredUnits } from '@/data/fixtures';
+
+const kindLabel: Record<string, string> = {
+  pendidikan: 'Pendidikan',
+  dakwah: 'Dakwah',
+  sosial: 'Sosial',
+  digital: 'Digital',
+  operasional: 'Operasional',
+};
+---
+
+<section class="section explore" aria-labelledby="jelajahi-title">
+  <div class="container explore__inner">
+    <div class="explore__intro">
+      <span class="eyebrow">Jelajahi YTS</span>
+      <h2 id="jelajahi-title">Unit dan bidang yang menaungi layanan</h2>
+      <p>
+        Setiap layanan dimiliki oleh unit tertentu. Bila Anda tidak yakin harus mulai dari mana,
+        telusuri lewat unitnya.
+      </p>
+      <a class="link-action" href="/unit">
+        Lihat semua unit
+        <Icon name="arrow-right" size={16} />
+      </a>
+    </div>
+
+    <ul class="explore__list">
+      {
+        featuredUnits.map((unit) => (
+          <li>
+            <a href={`/unit/${unit.slug}`}>
+              <span class="explore__row">
+                <span class="explore__name">{unit.title}</span>
+                <span class="explore__kind">{kindLabel[unit.kind] ?? unit.kind}</span>
+              </span>
+              <span class="explore__summary">{unit.summary}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .explore {
+    background-color: var(--color-surface-muted);
+    border-block: 1px solid var(--color-border);
+  }
+
+  .explore__inner {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  .explore__intro p {
+    max-width: 40ch;
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  .explore__intro .link-action {
+    margin-top: var(--space-4);
+  }
+
+  .explore__list {
+    display: grid;
+    border-top: 1px solid var(--color-border-strong);
+  }
+
+  .explore__list a {
+    display: block;
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: padding-inline-start var(--dur) var(--ease);
+  }
+
+  .explore__list a:hover {
+    padding-inline-start: var(--space-2);
+    color: var(--color-text);
+  }
+
+  .explore__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .explore__name {
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    font-weight: 600;
+    letter-spacing: var(--tracking-heading);
+  }
+
+  .explore__kind {
+    flex: none;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .explore__summary {
+    display: block;
+    max-width: 60ch;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  @media (min-width: 900px) {
+    .explore__inner {
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      gap: var(--space-16);
+      align-items: start;
+    }
+  }
+</style>

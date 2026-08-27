@@ -1,0 +1,63 @@
+---
+/** 404 — no dead ends (01-PRODUCT-BRIEF.md §7). Selalu tawarkan jalan keluar. */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Icon from '@/components/ui/Icon.astro';
+---
+
+<BaseLayout
+  title="Halaman tidak ditemukan"
+  description="Halaman yang Anda tuju tidak tersedia di YTS Hub."
+  noindex
+>
+  <section class="section">
+    <div class="container notfound">
+      <h1>Halaman tidak ditemukan</h1>
+      <p>Tautan yang Anda buka mungkin sudah berubah atau halamannya belum tersedia.</p>
+
+      <form class="notfound__search" action="/cari" method="get" role="search">
+        <label class="visually-hidden" for="q404">Cari informasi dan layanan YTS</label>
+        <input type="search" id="q404" name="q" placeholder="Cari program, layanan, atau FAQ" />
+        <button type="submit" class="btn btn--primary">Cari</button>
+      </form>
+
+      <ul class="notfound__links">
+        <li><a class="link-action" href="/">Beranda <Icon name="arrow-right" size={16} /></a></li>
+        <li>
+          <a class="link-action" href="/layanan"
+            >Katalog layanan <Icon name="arrow-right" size={16} /></a>
+        </li>
+        <li><a class="link-action" href="/faq">FAQ <Icon name="arrow-right" size={16} /></a></li>
+        <li>
+          <a class="link-action" href="/hubungi-kami"
+            >Hubungi Kami <Icon name="arrow-right" size={16} /></a>
+        </li>
+      </ul>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .notfound {
+    max-width: var(--container-narrow);
+  }
+  .notfound > p {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-body-l);
+  }
+  .notfound__search {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+    max-width: 480px;
+  }
+  .notfound__search .btn {
+    flex: none;
+  }
+  .notfound__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-6);
+    margin-top: var(--space-8);
+  }
+</style>

@@ -1,0 +1,59 @@
+---
+/**
+ * BaseLayout — shell HTML untuk seluruh halaman publik.
+ * SEO dasar per 09-ACCESSIBILITY-PERFORMANCE-SEO.md §6.
+ */
+import '@fontsource-variable/inter';
+import '@fontsource-variable/source-serif-4';
+import '@/styles/tokens.css';
+import '@/styles/base.css';
+
+import SiteHeader from '@/components/SiteHeader.astro';
+import SiteFooter from '@/components/SiteFooter.astro';
+import DevDataNotice from '@/components/ui/DevDataNotice.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Path kanonik relatif, mis. "/layanan". Default: URL saat ini. */
+  canonicalPath?: string;
+  noindex?: boolean;
+}
+
+const { title, description, canonicalPath, noindex = false } = Astro.props;
+
+const canonical = new URL(canonicalPath ?? Astro.url.pathname, Astro.site ?? Astro.url.origin);
+const fullTitle = title === 'YTS Hub' ? 'YTS Hub' : `${title} — YTS Hub`;
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical.href} />
+    {noindex && <meta name="robots" content="noindex,nofollow" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="YTS Hub" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical.href} />
+    <meta property="og:locale" content="id_ID" />
+    <meta name="twitter:card" content="summary" />
+
+    <meta name="theme-color" content="#F7F5EF" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <a class="skip-link" href="#konten">Lompat ke konten utama</a>
+    <DevDataNotice />
+    <SiteHeader />
+    <main id="konten">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>
