@@ -1,0 +1,198 @@
+---
+/**
+ * "Apakah informasi ini membantu?" — 07-SEARCH-AND-FAQ.md §10.
+ *
+ * ## Kenapa tanpa <form action>
+ *
+ * Halaman FAQ di-prerender statis; tidak ada endpoint yang bisa menerima POST
+ * form biasa lalu mengembalikan halaman yang sama. Jadi pengiriman dilakukan
+ * lewat fetch ke /api/faq/feedback.
+ *
+ * Konsekuensinya jujur: tanpa JavaScript, blok ini tidak dirender sama sekali —
+ * bukan dirender lalu diam saat ditekan. Tombol yang terlihat bisa ditekan tetapi
+ * tidak melakukan apa-apa lebih buruk daripada tombol yang tidak ada, dan isi
+ * FAQ-nya sendiri tetap terbaca penuh tanpa blok ini.
+ *
+ * Alasan "Belum" baru ditanyakan SETELAH pengguna menjawab, bukan ditampilkan
+ * bersamaan — §10 menyebutnya opsional, dan empat pilihan yang tampil sejak awal
+ * membuat pertanyaan sederhana terlihat seperti formulir.
+ */
+import { faqFeedbackReasons } from '@/server/content/search-analytics';
+
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<section class="feedback" data-feedback data-slug={slug} hidden aria-labelledby="feedback-title">
+  <h2 id="feedback-title">Apakah informasi ini membantu?</h2>
+
+  <div class="feedback__choices" data-feedback-choices>
+    <button type="button" class="btn btn--secondary" data-feedback-answer="ya">Ya</button>
+    <button type="button" class="btn btn--secondary" data-feedback-answer="belum">Belum</button>
+  </div>
+
+  <div class="feedback__reasons" data-feedback-reasons hidden>
+    <p id="feedback-reason-label">Apa yang kurang? (opsional)</p>
+    <ul aria-labelledby="feedback-reason-label">
+      {
+        faqFeedbackReasons.map((reason) => (
+          <li>
+            <button type="button" class="feedback__reason" data-feedback-reason={reason.value}>
+              {reason.label}
+            </button>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+
+  <p class="feedback__result" data-feedback-result role="status" aria-live="polite" hidden></p>
+</section>
+
+<script>
+  const block = document.querySelector<HTMLElement>('[data-feedback]');
+
+  if (block) {
+    // Dirender hanya bila skrip ini benar-benar berjalan — lihat catatan di atas.
+    block.hidden = false;
+
+    const slug = block.dataset.slug!;
+    const choices = block.querySelector<HTMLElement>('[data-feedback-choices]');
+    const reasons = block.querySelector<HTMLElement>('[data-feedback-reasons]');
+    const result = block.querySelector<HTMLElement>('[data-feedback-result]');
+
+    const say = (message: string) => {
+      if (!result) return;
+      result.hidden = false;
+      result.textContent = message;
+    };
+
+    // Id catatan dari jawaban pertama. Alasan yang menyusul melengkapi catatan
+    // itu, bukan mengirim jawaban baru — kalau tidak, satu orang terhitung dua
+    // kali menekan "Belum".
+    let feedbackId: string | null = null;
+
+    const post = async (payload: Record<string, unknown>) => {
+      const response = await fetch('/api/faq/feedback', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      return (await response.json()) as { feedbackId?: string };
+    };
+
+    choices?.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        '[data-feedback-answer]',
+      );
+      if (!button) return;
+
+      const helpful = button.dataset.feedbackAnswer === 'ya';
+      choices.hidden = true;
+
+      void post({ slug, helpful })
+        .then((result) => {
+          feedbackId = result.feedbackId ?? null;
+          if (helpful) {
+            say('Terima kasih atas masukannya.');
+          } else {
+            say('Terima kasih. Masukan Anda diteruskan ke unit pemilik informasi ini.');
+            // Alasan hanya bisa ditanyakan bila catatannya berhasil dibuat.
+            if (reasons && feedbackId) reasons.hidden = false;
+          }
+        })
+        .catch(() => {
+          // Kegagalan dilaporkan dan pilihan dikembalikan: pengguna menekan
+          // tombol dan berhak tahu masukannya tidak sampai.
+          choices.hidden = false;
+          say('Masukan gagal terkirim. Coba lagi sebentar lagi.');
+        });
+    });
+
+    reasons?.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        '[data-feedback-reason]',
+      );
+      if (!button || !feedbackId) return;
+
+      reasons.hidden = true;
+      void post({ feedbackId, reason: button.dataset.feedbackReason })
+        .then(() => say('Terima kasih, alasannya sudah dicatat.'))
+        .catch(() => say('Alasan gagal terkirim, tetapi jawaban "Belum" Anda sudah tercatat.'));
+    });
+  }
+</script>
+
+<style>
+  .feedback {
+    margin-top: var(--space-12);
+    padding: var(--space-6);
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-card);
+  }
+
+  .feedback h2 {
+    font-family: var(--font-ui);
+    font-size: var(--text-body);
+    font-weight: 600;
+    letter-spacing: normal;
+  }
+
+  .feedback__choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .feedback__choices .btn {
+    min-width: 6rem;
+  }
+
+  .feedback__reasons {
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .feedback__reasons p {
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .feedback__reasons ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+
+  /* Pilihan alasan sengaja tampil sebagai tautan bertepi, bukan tombol penuh:
+     ini pilihan sekunder yang tidak boleh menyaingi "Ya"/"Belum" di atasnya. */
+  .feedback__reason {
+    min-height: 44px;
+    padding-inline: var(--space-4);
+    background: none;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+    color: var(--color-text);
+    font-size: var(--text-small);
+    cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease);
+  }
+
+  .feedback__reason:hover {
+    border-color: var(--color-brand);
+    color: var(--color-brand-strong);
+  }
+
+  .feedback__result {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+</style>

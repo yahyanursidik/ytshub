@@ -3,13 +3,13 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
-  "description": "YTS Hub \u2014 public web (Astro + React islands). Fase 0-1.",
+  "description": "YTS Hub — public web (Astro + React islands). Fase 0-1.",
   "engines": {
     "node": ">=20.11.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
+    "dev": "cd .. && astro dev --root yts-hub-web",
+    "start": "npm run dev",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
@@ -31,6 +31,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@astrojs/netlify": "8.2.4",
     "@astrojs/react": "6.0.4",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/source-serif-4": "^5.3.0",

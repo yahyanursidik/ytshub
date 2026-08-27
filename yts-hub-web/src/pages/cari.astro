@@ -1,17 +1,390 @@
 ---
+/**
+ * Halaman hasil pencarian — 07-SEARCH-AND-FAQ.md §1-§7.
+ *
+ * Satu-satunya halaman publik yang dirender saat request. Alasannya ada di
+ * astro.config.mjs; ringkasnya, `?q=` baru ada ketika pengunjung mengetiknya.
+ *
+ * Halaman ini `noindex`: 09-ACCESSIBILITY-PERFORMANCE-SEO.md §7 meminta state
+ * hasil pencarian tidak menambah crawl noise, dan tiap kombinasi query akan
+ * menjadi URL baru bila dibiarkan terindeks.
+ */
+export const prerender = false;
+
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import SearchField from '@/components/search/SearchField.astro';
+import ResultItem from '@/components/search/ResultItem.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { search, suggestCorrection } from '@/server/content/search-queries';
+import { recordSearch } from '@/server/content/search-analytics';
+import { listFaqCategories } from '@/server/content/directory-queries';
+import { getPopularFaqs } from '@/server/content/public-queries';
+
+const query = (Astro.url.searchParams.get('q') ?? '').slice(0, 200);
+const hasQuery = query.trim().length > 0;
+
+/**
+ * State halaman. `failed` dibedakan dari `kosong`: pencarian yang gagal karena
+ * database tidak terjangkau BUKAN hal yang sama dengan pencarian yang tidak
+ * menemukan apa pun, dan menampilkan "tidak ada hasil" untuk keduanya akan
+ * membuat pengunjung mengira informasinya memang tidak ada.
+ */
+let failed = false;
+let outcome = null;
+let correction: string | null = null;
+let searchId: string | null = null;
+let popularFaqs: Awaited<ReturnType<typeof getPopularFaqs>> = [];
+let categories: Awaited<ReturnType<typeof listFaqCategories>> = [];
+
+if (hasQuery) {
+  try {
+    outcome = await search(query);
+    searchId = await recordSearch(query, outcome.total);
+
+    if (outcome.total === 0) {
+      // Bahan halaman tanpa hasil (§7) hanya diambil saat memang dibutuhkan.
+      [correction, popularFaqs, categories] = await Promise.all([
+        suggestCorrection(query),
+        getPopularFaqs(4),
+        listFaqCategories(),
+      ]);
+    }
+  } catch (error) {
+    console.error('[search] pencarian gagal:', error);
+    failed = true;
+  }
+}
+
+/**
+ * Peringkat global tiap hasil, dihitung sekali di sini.
+ *
+ * Yang dikirim ke analytics harus posisi hasil DI HALAMAN (1 = paling atas,
+ * lintas kelompok), bukan posisinya di dalam kelompoknya sendiri — kalau tidak,
+ * "hasil ke-2" bisa berarti dua tempat yang berbeda dan angkanya kehilangan arti.
+ */
+let rank = 1;
+const rankedGroups = (outcome?.groups ?? []).map((group) => ({
+  ...group,
+  items: group.items.map((hit) => ({ hit, rank: ++rank })),
+}));
+
+const title = hasQuery ? `Hasil pencarian "${query}"` : 'Cari';
 ---
 
 <BaseLayout
-  title="Cari"
-  description="Pencarian terpadu untuk FAQ, layanan, program, unit, dan aplikasi."
+  title={title}
+  description="Pencarian terpadu untuk FAQ, layanan, program, unit, event, dan aplikasi YTS."
   canonicalPath="/cari"
   noindex
 >
-  <PhasePlaceholder
-    title="Cari"
-    phase="Fase 4 — FAQ & Search"
-    describes="Pencarian terpadu untuk FAQ, layanan, program, unit, dan aplikasi."
-  />
+  <PageHeader
+    eyebrow="Pencarian"
+    title={hasQuery ? 'Hasil pencarian' : 'Cari di YTS Hub'}
+    lead={hasQuery
+      ? undefined
+      : 'Ketik yang Anda cari — pertanyaan, nama layanan, program, unit, atau aplikasi.'}
+    crumbs={[{ label: 'Beranda', href: '/' }, { label: 'Cari' }]}
+  >
+    <div class="search-slot">
+      <SearchField value={query} autofocus={!hasQuery} id="q-cari" />
+    </div>
+  </PageHeader>
+
+  <div class="container results">
+    {
+      !hasQuery && (
+        <p class="results__hint">
+          Anda juga bisa menelusuri lewat <a href="/faq">FAQ</a>, <a href="/layanan">layanan</a>,
+          atau <a href="/unit">daftar unit</a>.
+        </p>
+      )
+    }
+
+    {
+      failed && (
+        <div class="notice notice--error" role="alert">
+          <h2>Pencarian sedang tidak bisa dijalankan</h2>
+          <p>
+            Ini gangguan di sisi kami, bukan berarti informasinya tidak ada. Coba lagi beberapa
+            saat lagi, atau telusuri langsung lewat <a href="/faq">FAQ</a> dan{' '}
+            <a href="/layanan">daftar layanan</a>.
+          </p>
+        </div>
+      )
+    }
+
+    {
+      outcome && outcome.total > 0 && (
+        <div data-search-id={searchId ?? undefined}>
+          <p class="results__count" role="status">
+            {outcome.total} hasil untuk <strong>{outcome.normalized}</strong>
+            {outcome.mode === 'any' && (
+              <span class="results__mode">
+                {' '}
+                — tidak ada yang memuat semua kata, jadi ditampilkan hasil yang cocok sebagian.
+              </span>
+            )}
+          </p>
+
+          {outcome.top && (
+            <section class="results__top" aria-labelledby="hasil-teratas">
+              <h2 id="hasil-teratas" class="results__group-title">
+                Paling relevan
+              </h2>
+              <ul>
+                <ResultItem hit={outcome.top} query={query} rank={1} prominent />
+              </ul>
+            </section>
+          )}
+
+          {rankedGroups.map((group) => (
+            <section class="results__group" aria-labelledby={`grup-${group.type}`}>
+              <h2 id={`grup-${group.type}`} class="results__group-title">
+                {group.label}
+              </h2>
+              <ul>
+                {group.items.map((entry) => (
+                  <ResultItem hit={entry.hit} query={query} rank={entry.rank} showType={false} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      outcome && outcome.total === 0 && (
+        <div class="zero">
+          {/* §7: "Jangan tampilkan kosong." Empat jalan keluar, berurutan dari
+              yang paling mungkin menyelesaikan masalah pengguna. */}
+          <h2>Kami belum menemukan informasi yang sesuai.</h2>
+          <p class="zero__lead">
+            Tidak ada hasil untuk <strong>{outcome.normalized}</strong>.
+          </p>
+
+          {correction && (
+            <p class="zero__correction">
+              Mungkin maksud Anda{' '}
+              <a href={`/cari?q=${encodeURIComponent(correction)}`}>{correction}</a>?
+            </p>
+          )}
+
+          <div class="zero__blocks">
+            {categories.length > 0 && (
+              <section aria-labelledby="zero-kategori">
+                <h3 id="zero-kategori">Telusuri per kategori</h3>
+                <ul class="zero__links">
+                  {categories.map((category) => (
+                    <li>
+                      <a href={`/faq?kategori=${category.slug}`}>{category.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {popularFaqs.length > 0 && (
+              <section aria-labelledby="zero-faq">
+                <h3 id="zero-faq">Pertanyaan yang sering dicari</h3>
+                <ul class="zero__links">
+                  {popularFaqs.map((faq) => (
+                    <li>
+                      <a href={`/faq/${faq.slug}`}>{faq.question}</a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+
+          <p class="zero__contact">
+            Masih belum ketemu?{' '}
+            <a class="link-action" href="/hubungi-kami">
+              Hubungi Kami
+              <Icon name="arrow-right" size={15} />
+            </a>
+          </p>
+        </div>
+      )
+    }
+  </div>
 </BaseLayout>
+
+<script>
+  /**
+   * Mencatat hasil mana yang dibuka — 07-SEARCH-AND-FAQ.md §11.
+   *
+   * `sendBeacon` supaya perpindahan halaman tidak menunggu jaringan. Bila
+   * browser tidak mendukungnya, pencatatan dilewati begitu saja: kehilangan satu
+   * baris analytics jauh lebih ringan daripada menahan navigasi pengguna.
+   */
+  const scope = document.querySelector<HTMLElement>('[data-search-id]');
+  const searchId = scope?.dataset.searchId;
+
+  if (scope && searchId && navigator.sendBeacon) {
+    scope.addEventListener('click', (event) => {
+      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('[data-result]');
+      if (!link) return;
+
+      navigator.sendBeacon(
+        '/api/cari/klik',
+        new Blob(
+          [
+            JSON.stringify({
+              searchId,
+              entity: link.dataset.entity,
+              slug: link.dataset.slug,
+              rank: Number(link.dataset.rank),
+            }),
+          ],
+          { type: 'application/json' },
+        ),
+      );
+    });
+  }
+</script>
+
+<style>
+  .search-slot {
+    max-width: 720px;
+    margin-top: var(--space-6);
+  }
+
+  .results {
+    padding-block: var(--space-8) var(--space-16);
+  }
+
+  .results__hint {
+    color: var(--color-text-muted);
+  }
+
+  .results__count {
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .results__count strong {
+    color: var(--color-text);
+  }
+
+  .results__mode {
+    color: var(--color-text-muted);
+  }
+
+  .results__top {
+    margin-top: var(--space-8);
+  }
+
+  .results__group {
+    margin-top: var(--space-12);
+  }
+
+  .results__group-title {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .results__group ul {
+    margin-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .results__top ul {
+    margin-top: var(--space-3);
+  }
+
+  /* ---- Gangguan ---- */
+  .notice--error {
+    max-width: 60ch;
+    padding: var(--space-6);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-card);
+  }
+
+  .notice--error h2 {
+    font-size: var(--text-h3);
+  }
+
+  .notice--error p {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  /* ---- Tanpa hasil ---- */
+  .zero {
+    max-width: 70ch;
+  }
+
+  .zero h2 {
+    font-size: var(--text-h2);
+  }
+
+  .zero__lead {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  .zero__correction {
+    margin-top: var(--space-4);
+    font-size: var(--text-body-l);
+  }
+
+  .zero__blocks {
+    display: grid;
+    gap: var(--space-8);
+    margin-top: var(--space-12);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .zero__blocks h3 {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .zero__links {
+    margin-top: var(--space-3);
+  }
+
+  .zero__links li + li {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .zero__links a {
+    display: block;
+    min-height: 44px;
+    padding-block: var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .zero__links a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .zero__contact {
+    margin-top: var(--space-12);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  @media (min-width: 760px) {
+    .zero__blocks {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-12);
+    }
+  }
+</style>

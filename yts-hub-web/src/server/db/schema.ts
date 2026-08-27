@@ -11,9 +11,10 @@
  * - timestamp konsisten (timestamptz, default now());
  * - registry aplikasi TIDAK menyimpan credential apa pun (06-CONTENT-MODEL §8).
  */
-import { relations, sql } from 'drizzle-orm';
+import { type SQL, relations, sql } from 'drizzle-orm';
 import {
   boolean,
+  customType,
   foreignKey,
   index,
   integer,
@@ -25,6 +26,49 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+
+/* ------------------------------------------------------ full text search */
+
+/**
+ * Kolom `tsvector` — 07-SEARCH-AND-FAQ.md §5 ("mulai dengan PostgreSQL Full Text
+ * Search", tanpa search service eksternal).
+ *
+ * Drizzle belum punya tipe tsvector bawaan, jadi didefinisikan di sini. Isinya
+ * tidak pernah dibaca aplikasi — hanya dipakai operator `@@` di dalam query —
+ * sehingga tipe TypeScript-nya sengaja `never`: kolom ini tidak boleh ikut
+ * di-`select` maupun di-`insert`.
+ */
+const tsvector = customType<{ data: never; driverData: string }>({
+  dataType: () => 'tsvector',
+});
+
+/**
+ * Membangun search vector berbobot dari beberapa kolom teks.
+ *
+ * Bobot menentukan peringkat, bukan sekadar cocok/tidak (07-SEARCH §4):
+ * - A — judul/pertanyaan: yang dicari orang saat mengetik nama sesuatu
+ * - B — kategori & ringkasan: konteks yang mempersempit
+ * - C — badan teks: cocok, tapi paling lemah
+ *
+ * `to_tsvector` dengan nama konfigurasi sebagai literal bersifat IMMUTABLE,
+ * syarat wajib untuk generated column. Karena itu konfigurasinya ditulis
+ * konstan `'indonesian'` dan bukan diambil dari `default_text_search_config`.
+ *
+ * `keywords` FAQ sengaja TIDAK ikut di sini. Kolomnya `text[]`, dan
+ * `array_to_string` bukan IMMUTABLE sehingga tidak bisa dipakai generated column.
+ * Lagi pula 07-SEARCH §4 memperlakukan "keyword/alias match" sebagai sinyal
+ * peringkat tersendiri — jadi dicocokkan langsung sebagai array di query search.
+ */
+const searchVector = (weights: { a?: string[]; b?: string[]; c?: string[] }): SQL => {
+  const part = (columns: string[] | undefined, weight: 'A' | 'B' | 'C') =>
+    (columns ?? []).map(
+      (column) =>
+        sql`setweight(to_tsvector('indonesian', coalesce(${sql.raw(`"${column}"`)}, '')), ${sql.raw(`'${weight}'`)})`,
+    );
+
+  const parts = [...part(weights.a, 'A'), ...part(weights.b, 'B'), ...part(weights.c, 'C')];
+  return sql.join(parts, sql` || `);
+};
 
 /* ------------------------------------------------------------------ enums */
 
@@ -96,6 +140,9 @@ export const units = pgTable(
     /** Unit induk, bila unit ini adalah divisi (06-CONTENT-MODEL §1: Unit vs Division). */
     parentUnitId: uuid('parent_unit_id'),
     sortOrder: integer('sort_order').notNull().default(0),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      searchVector({ a: ['title', 'short_name'], b: ['summary'], c: ['about'] }),
+    ),
   },
   (table) => [
     uniqueIndex('units_slug_key').on(table.slug),
@@ -103,6 +150,7 @@ export const units = pgTable(
     index('units_status_idx').on(table.status, table.visibility),
     index('units_review_due_idx').on(table.reviewDueAt),
     index('units_parent_idx').on(table.parentUnitId),
+    index('units_search_idx').using('gin', table.searchVector),
     // Self-reference perlu bentuk ini; .references() tidak bisa menunjuk tabel
     // yang sedang didefinisikan.
     foreignKey({
@@ -183,6 +231,13 @@ export const services = pgTable(
      * Fase 4 menggantinya dengan peringkat dari analytics (07-SEARCH §11).
      */
     sortOrder: integer('sort_order').notNull().default(0),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      searchVector({
+        a: ['title'],
+        b: ['category', 'summary'],
+        c: ['description', 'requirements', 'service_channel'],
+      }),
+    ),
   },
   (table) => [
     uniqueIndex('services_slug_key').on(table.slug),
@@ -190,6 +245,7 @@ export const services = pgTable(
     index('services_owner_idx').on(table.ownerUnitId),
     index('services_status_idx').on(table.status, table.visibility),
     index('services_popular_idx').on(table.isPopular, table.status),
+    index('services_search_idx').using('gin', table.searchVector),
   ],
 );
 
@@ -228,6 +284,13 @@ export const programs = pgTable(
     ctaUrl: text('cta_url'),
     isFeatured: boolean('is_featured').notNull().default(false),
     sortOrder: integer('sort_order').notNull().default(0),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      searchVector({
+        a: ['title'],
+        b: ['category', 'summary'],
+        c: ['description', 'schedule_summary', 'location_summary'],
+      }),
+    ),
   },
   (table) => [
     uniqueIndex('programs_slug_key').on(table.slug),
@@ -235,6 +298,7 @@ export const programs = pgTable(
     index('programs_owner_idx').on(table.ownerUnitId),
     index('programs_status_idx').on(table.status, table.visibility),
     index('programs_program_status_idx').on(table.programStatus),
+    index('programs_search_idx').using('gin', table.searchVector),
   ],
 );
 
@@ -287,6 +351,13 @@ export const events = pgTable(
     relatedProgramId: uuid('related_program_id').references(() => programs.id, {
       onDelete: 'set null',
     }),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      searchVector({
+        a: ['title'],
+        b: ['summary'],
+        c: ['description', 'location', 'speaker_summary'],
+      }),
+    ),
   },
   (table) => [
     uniqueIndex('events_slug_key').on(table.slug),
@@ -294,6 +365,7 @@ export const events = pgTable(
     index('events_organizer_idx').on(table.organizerUnitId),
     index('events_start_idx').on(table.startAt),
     index('events_status_idx').on(table.status, table.visibility),
+    index('events_search_idx').using('gin', table.searchVector),
   ],
 );
 
@@ -333,6 +405,9 @@ export const faqs = pgTable(
     helpfulNo: integer('helpful_no').notNull().default(0),
     isPopular: boolean('is_popular').notNull().default(false),
     sortOrder: integer('sort_order').notNull().default(0),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      searchVector({ a: ['question'], b: ['summary'], c: ['answer'] }),
+    ),
   },
   (table) => [
     uniqueIndex('faqs_slug_key').on(table.slug),
@@ -341,6 +416,9 @@ export const faqs = pgTable(
     index('faqs_owner_idx').on(table.ownerUnitId),
     index('faqs_status_idx').on(table.status, table.visibility),
     index('faqs_popular_idx').on(table.isPopular, table.status),
+    index('faqs_search_idx').using('gin', table.searchVector),
+    // Pencocokan alias/kata kunci — sinyal peringkat kedua di 07-SEARCH §4.
+    index('faqs_keywords_idx').using('gin', table.keywords),
   ],
 );
 
@@ -399,6 +477,15 @@ export const applications = pgTable(
     linkHealth: linkHealth('link_health'),
     linkCheckedAt: timestamp('link_checked_at', { withTimezone: true }),
     sortOrder: integer('sort_order').notNull().default(0),
+    /**
+     * Hanya kolom publik yang masuk index. `integration_notes`, `technical_owner`,
+     * dan kerabatnya sengaja tidak ikut — bila ikut, isinya bisa ditebak dari luar
+     * dengan menyusun query yang cocok, dan itu membocorkan field internal
+     * (06-CONTENT-MODEL §8) lewat pintu belakang.
+     */
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      searchVector({ a: ['name', 'title'], b: ['summary'], c: ['description'] }),
+    ),
   },
   (table) => [
     uniqueIndex('applications_slug_key').on(table.slug),
@@ -406,7 +493,85 @@ export const applications = pgTable(
     index('applications_owner_idx').on(table.ownerUnitId),
     index('applications_status_idx').on(table.status, table.visibility),
     index('applications_health_idx').on(table.linkHealth),
+    index('applications_search_idx').using('gin', table.searchVector),
   ],
+);
+
+/* --------------------------------------------------- search & feedback log */
+
+/** Jenis entity yang bisa muncul di hasil search — 07-SEARCH-AND-FAQ.md §2. */
+export const searchEntity = pgEnum('search_entity', [
+  'faq',
+  'service',
+  'program',
+  'unit',
+  'event',
+  'application',
+]);
+
+/**
+ * Log pencarian — 07-SEARCH-AND-FAQ.md §11.
+ *
+ * Yang disimpan hanya yang dibutuhkan untuk content gap analysis: teks query,
+ * jumlah hasil, dan hasil mana yang diklik. TIDAK ADA kolom untuk IP, user agent,
+ * session id, atau identitas apa pun — §11 meminta "track tanpa menyimpan data
+ * sensitif yang tidak dibutuhkan", dan baris ini tidak boleh bisa dirangkai
+ * kembali menjadi riwayat pencarian seseorang.
+ *
+ * `query_normalized` (huruf kecil, spasi rapat) yang dipakai untuk agregasi;
+ * `query_raw` disimpan apa adanya karena beda ejaan justru sinyal yang berguna.
+ */
+export const searchQueries = pgTable(
+  'search_queries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    queryRaw: text('query_raw').notNull(),
+    queryNormalized: text('query_normalized').notNull(),
+    resultCount: integer('result_count').notNull(),
+    /** Diisi belakangan lewat endpoint klik; null berarti tidak ada hasil yang dibuka. */
+    clickedEntity: searchEntity('clicked_entity'),
+    clickedSlug: text('clicked_slug'),
+    /** Peringkat hasil yang diklik (1 = teratas) — bahan evaluasi kualitas ranking. */
+    clickedRank: integer('clicked_rank'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('search_queries_normalized_idx').on(table.queryNormalized),
+    index('search_queries_created_idx').on(table.createdAt),
+    // Query tanpa hasil adalah daftar kerja redaksi (§7), jadi perlu index sendiri.
+    index('search_queries_zero_idx').on(table.resultCount, table.createdAt),
+  ],
+);
+
+export const faqFeedbackReason = pgEnum('faq_feedback_reason', [
+  'kurang-jelas',
+  'kurang-lengkap',
+  'sudah-tidak-berlaku',
+  'bukan-jawaban-yang-dicari',
+]);
+
+/**
+ * Feedback kebermanfaatan FAQ — 07-SEARCH-AND-FAQ.md §10.
+ *
+ * Baris di sini adalah catatan mentah; `faqs.helpful_yes` / `helpful_no` adalah
+ * penghitung agregat yang dipakai ranking. Keduanya disimpan karena alasannya
+ * ("kurang lengkap", "sudah tidak berlaku") tidak bisa direkonstruksi dari angka.
+ *
+ * Tidak ada identitas pengirim yang disimpan — sama alasannya dengan search_queries.
+ */
+export const faqFeedback = pgTable(
+  'faq_feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    faqId: uuid('faq_id')
+      .notNull()
+      .references(() => faqs.id, { onDelete: 'cascade' }),
+    isHelpful: boolean('is_helpful').notNull(),
+    /** Hanya relevan bila `is_helpful` false; opsional bahkan saat itu. */
+    reason: faqFeedbackReason('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('faq_feedback_faq_idx').on(table.faqId, table.createdAt)],
 );
 
 /* -------------------------------------------------------------- relations */
@@ -451,6 +616,11 @@ export const faqsRelations = relations(faqs, ({ one, many }) => ({
   category: one(faqCategories, { fields: [faqs.categoryId], references: [faqCategories.id] }),
   services: many(faqsToServices),
   programs: many(faqsToPrograms),
+  feedback: many(faqFeedback),
+}));
+
+export const faqFeedbackRelations = relations(faqFeedback, ({ one }) => ({
+  faq: one(faqs, { fields: [faqFeedback.faqId], references: [faqs.id] }),
 }));
 
 export const applicationsRelations = relations(applications, ({ one }) => ({

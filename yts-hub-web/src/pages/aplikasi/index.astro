@@ -7,6 +7,10 @@
  *
  * Field internal (technical owner, repository, hosting, integration notes) tidak
  * pernah sampai ke sini — query publik tidak mengambilnya sama sekali.
+ *
+ * Tiap baris memakai slug-nya sebagai `id`. Registry tidak punya halaman detail
+ * sendiri, jadi hasil pencarian menunjuk /aplikasi#<slug> agar pengguna mendarat
+ * di baris yang dimaksud, bukan di pucuk daftar (lihat hrefFor di search-queries.ts).
  */
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PageHeader from '@/components/ui/PageHeader.astro';
@@ -61,7 +65,7 @@ const groups: FilterGroup[] = [
     <ul class="app-list" data-filter-list>
       {
         apps.map((app) => (
-          <li data-filter-item data-jenis={app.kind}>
+          <li id={app.slug} data-filter-item data-jenis={app.kind}>
             <article>
               <div class="app-list__main">
                 <p class="app-list__kind">
@@ -113,6 +117,16 @@ const groups: FilterGroup[] = [
 
   .app-list li {
     border-bottom: 1px solid var(--color-border);
+    /* Header halaman menempel di atas; tanpa ini baris yang dituju dari
+       /aplikasi#<slug> berhenti tepat di baliknya. */
+    scroll-margin-top: 6rem;
+  }
+
+  /* Menandai baris yang baru saja dituju dari hasil pencarian, supaya mata
+     langsung menemukannya di antara baris lain yang mirip. */
+  .app-list li:target {
+    background-color: var(--color-surface-brand);
+    box-shadow: -0.75rem 0 0 var(--color-surface-brand);
   }
 
   .app-list article {

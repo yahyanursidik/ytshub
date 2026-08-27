@@ -65,9 +65,13 @@ export const taskShortcuts: TaskShortcut[] = [
 ];
 
 /**
- * Query populer di bawah search hero — 03-LANDING-PAGE-UIUX.md §4.
- * Sementara ditetapkan manual. Pada Fase 4 diganti dari analytics query
- * (07-SEARCH-AND-FAQ.md §11) supaya mencerminkan pencarian nyata.
+ * Contoh query di bawah search hero — 03-LANDING-PAGE-UIUX.md §4.
+ *
+ * Sejak Fase 4 daftar ini adalah CADANGAN, bukan sumber utama: beranda memakai
+ * query yang benar-benar sering diketik pengunjung (07-SEARCH-AND-FAQ.md §11) dan
+ * hanya jatuh ke sini selama riwayat pencarian belum cukup — mis. tepat setelah
+ * situs terbit. Isinya karena itu contoh yang jelas-jelas ada jawabannya,
+ * bukan tebakan tentang apa yang populer.
  */
 export const popularQueries: string[] = [
   'cara mendaftar sekolah',

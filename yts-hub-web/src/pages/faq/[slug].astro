@@ -1,20 +1,215 @@
 ---
-/** Detail FAQ. Isi pada Fase 4 (07-SEARCH-AND-FAQ.md §9). */
+/**
+ * Detail FAQ — 07-SEARCH-AND-FAQ.md §9.
+ *
+ * Urutan isinya: pertanyaan → jawaban → kapan ditinjau → layanan/program terkait
+ * → feedback. Jawaban naik ke paling atas dan tidak dibungkus apa pun; orang
+ * datang ke halaman ini untuk satu kalimat, bukan untuk membaca kartu.
+ *
+ * Berbeda dari detail layanan yang punya panel samping: FAQ terlalu pendek untuk
+ * dua kolom — tautan terkait akan berdiri di sebelah ruang kosong. Karena itu
+ * halaman ini satu kolom sempit (05-HALLMARK-ANTI-SLOP.md §6: komposisi mengikuti
+ * kepadatan informasi, bukan template yang sama untuk semua).
+ */
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
-import { getFaqSlugs } from '@/server/content/public-queries';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import RelatedBlock from '@/components/ui/RelatedBlock.astro';
+import FaqFeedback from '@/components/search/FaqFeedback.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { getFaqDetail, listFaqs } from '@/server/content/directory-queries';
 
 export async function getStaticPaths() {
-  const faqs = await getFaqSlugs();
-  return faqs.map((faq) => ({
-    params: { slug: faq.slug },
-    props: { title: faq.question, summary: faq.summary },
-  }));
+  const faqs = await listFaqs();
+  return faqs.map((faq) => ({ params: { slug: faq.slug } }));
 }
 
-const { title, summary } = Astro.props;
+const { slug } = Astro.params;
+const detail = await getFaqDetail(slug!);
+
+if (!detail) {
+  return Astro.rewrite('/404');
+}
+
+const { faq, relatedServices, relatedPrograms, sameCategory } = detail;
+
+/**
+ * §9 meminta "updated/reviewed date bila relevan" — kata kuncinya "bila".
+ * `reviewedAt` ditampilkan bila ada, karena untuk FAQ yang penting adalah kapan
+ * jawabannya terakhir DIPERIKSA, bukan kapan barisnya tersentuh. Bila belum
+ * pernah ditinjau, tidak ada tanggal yang ditampilkan sama sekali — menampilkan
+ * `updatedAt` sebagai gantinya akan memberi kesan jaminan yang tidak ada.
+ */
+const reviewed = faq.reviewedAt
+  ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(faq.reviewedAt)
+  : null;
+
+const answerParagraphs = faq.answer.split('\n\n').filter((paragraph) => paragraph.trim() !== '');
+
+/**
+ * RelatedBlock tidak merender apa pun bila daftarnya kosong, jadi pembungkusnya
+ * harus ikut dijaga — kalau tidak, grid dua kolom tetap terpasang tanpa isi dan
+ * menyisakan lubang selebar layar antara feedback dan tautan kontak.
+ *
+ * FAQ tetap tidak buntu saat blok ini absen: masih ada "Lanjutkan ke tindakan"
+ * dan tautan ke unit pemiliknya (02-IA §7).
+ */
+const hasRelated = relatedPrograms.length > 0 || sameCategory.length > 0;
 ---
 
-<BaseLayout title={title} description={summary} noindex>
-  <PhasePlaceholder title={title} phase="Fase 4 — FAQ & Search" describes={summary} />
+<BaseLayout
+  title={faq.seoTitle ?? faq.question}
+  description={faq.seoDescription ?? faq.summary}
+  canonicalPath={`/faq/${faq.slug}`}
+>
+  <PageHeader
+    eyebrow={faq.categoryLabel}
+    title={faq.question}
+    crumbs={[
+      { label: 'Beranda', href: '/' },
+      { label: 'FAQ', href: '/faq' },
+      { label: faq.question },
+    ]}
+  >
+    <p class="owner">
+      Dijawab oleh <a href={`/unit/${faq.unitSlug}`}>{faq.unitTitle}</a>
+      {reviewed && <span class="owner__reviewed">· Ditinjau {reviewed}</span>}
+    </p>
+  </PageHeader>
+
+  <div class="container faq-detail">
+    <div class="faq-detail__answer">
+      {answerParagraphs.map((paragraph) => <p>{paragraph}</p>)}
+    </div>
+
+    {
+      relatedServices.length > 0 && (
+        <div class="faq-detail__action">
+          <h2>Lanjutkan ke tindakan</h2>
+          <p>Pertanyaan ini terhubung dengan layanan berikut.</p>
+          <ul>
+            {relatedServices.map((service) => (
+              <li>
+                <a class="btn btn--primary" href={`/layanan/${service.slug}`}>
+                  {service.title}
+                  <Icon name="arrow-right" size={16} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    <FaqFeedback slug={faq.slug} />
+
+    {
+      hasRelated && (
+        <div class="faq-detail__related">
+          <RelatedBlock
+            title="Program terkait"
+            items={relatedPrograms.map((program) => ({
+              href: `/program/${program.slug}`,
+              label: program.title,
+              note: program.summary,
+            }))}
+          />
+          <RelatedBlock
+            title={`Pertanyaan lain tentang ${faq.categoryLabel}`}
+            items={sameCategory.map((other) => ({
+              href: `/faq/${other.slug}`,
+              label: other.question,
+            }))}
+            moreHref="/faq"
+            moreLabel="Semua FAQ"
+          />
+        </div>
+      )
+    }
+
+    <p class="faq-detail__contact">
+      Jawaban ini belum menyelesaikan masalah Anda?
+      <a class="link-action" href="/hubungi-kami">
+        Hubungi {faq.unitName}
+        <Icon name="arrow-right" size={15} />
+      </a>
+    </p>
+  </div>
 </BaseLayout>
+
+<style>
+  .owner {
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  /* Jarak dibuat di sini, bukan sebagai spasi di markup: whitespace di awal
+     ekspresi JSX dibuang saat render — sama seperti hitungan filter di Fase 3. */
+  .owner__reviewed {
+    margin-inline-start: 0.5ch;
+    white-space: nowrap;
+  }
+
+  .faq-detail {
+    max-width: var(--container-narrow);
+    margin-inline: auto;
+    padding-block: var(--space-12) var(--space-16);
+  }
+
+  /* Jawaban dibuat lebih besar daripada teks isi biasa: inilah alasan halaman
+     ini ada, jadi ia tidak boleh seukuran keterangan di sekitarnya. */
+  .faq-detail__answer {
+    display: grid;
+    gap: var(--space-4);
+    max-width: 66ch;
+    font-size: var(--text-body-l);
+  }
+
+  .faq-detail__action {
+    margin-top: var(--space-12);
+    padding: var(--space-6);
+    background-color: var(--color-surface-brand);
+    border-radius: var(--radius-panel);
+  }
+
+  .faq-detail__action h2 {
+    font-size: var(--text-h3);
+  }
+
+  .faq-detail__action p {
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
+  }
+
+  .faq-detail__action ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .faq-detail__related {
+    display: grid;
+    gap: var(--space-8);
+    margin-top: var(--space-16);
+  }
+
+  .faq-detail__contact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    margin-top: var(--space-12);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  @media (min-width: 760px) {
+    .faq-detail__related {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-12);
+      align-items: start;
+    }
+  }
+</style>

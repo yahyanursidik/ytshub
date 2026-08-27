@@ -25,14 +25,29 @@ import {
   getPopularServices,
   getPublicApplications,
 } from '@/server/content/public-queries';
+import { getTopQueries } from '@/server/content/search-analytics';
+import { popularQueries as fallbackQueries } from '@/config/navigation';
 
-const [services, units, programs, faqs, applications] = await Promise.all([
+const [services, units, programs, faqs, applications, topQueries] = await Promise.all([
   getPopularServices(5),
   getFeaturedUnits(4),
   getFeaturedPrograms(3),
   getPopularFaqs(4),
   getPublicApplications(3),
+  getTopQueries(4),
 ]);
+
+/**
+ * "Sering dicari" diambil dari pencarian yang benar-benar terjadi (07-SEARCH §11),
+ * menggantikan daftar tetap yang dipakai sejak Fase 1.
+ *
+ * Daftar di konfigurasi tetap dipertahankan sebagai cadangan, bukan sebagai
+ * peninggalan: situs yang baru terbit belum punya riwayat pencarian sama sekali,
+ * dan hero tanpa contoh query membuat kolom pencarian kehilangan petunjuk apa
+ * yang bisa diketik. Cadangan ini berhenti dipakai sendirinya begitu ada cukup
+ * data nyata — tidak ada saklar yang perlu diingat seseorang untuk dimatikan.
+ */
+const popularQueries = topQueries.length > 0 ? topQueries : fallbackQueries;
 ---
 
 <BaseLayout
@@ -40,7 +55,7 @@ const [services, units, programs, faqs, applications] = await Promise.all([
   description="Pusat informasi dan layanan resmi Yayasan Tarbiyah Sunnah. Temukan program, layanan, unit, dan aplikasi YTS dengan cepat."
   canonicalPath="/"
 >
-  <Hero />
+  <Hero popularQueries={popularQueries} />
   <QuickAccess />
   <PopularServices services={services} />
   <ExploreYts units={units} />

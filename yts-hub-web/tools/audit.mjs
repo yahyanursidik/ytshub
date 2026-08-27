@@ -26,6 +26,14 @@ const PAGES = [
   '/event/kajian-pekanan',
   '/aplikasi',
   '/hubungi-kami',
+  // Fase 4. Halaman hasil diperiksa dalam tiga keadaannya, bukan satu:
+  // ada hasil, tanpa hasil, dan belum ada yang dicari — struktur ketiganya
+  // berbeda, jadi masalahnya juga berbeda.
+  '/faq',
+  '/faq/cara-berdonasi',
+  '/cari',
+  '/cari?q=donasi',
+  '/cari?q=zzzqqqwww',
   '/404.html',
 ];
 
@@ -36,10 +44,34 @@ const report = (label, items) => {
   items.forEach((i) => console.log(`      - ${i}`));
 };
 
+/**
+ * Menyaring elemen milik dev toolbar Astro.
+ *
+ * `closest('astro-dev-toolbar')` saja tidak cukup: toolbar menaruh tombolnya di
+ * dalam shadow DOM, dan `closest()` berhenti di batas shadow root sementara
+ * selector Playwright justru menembusnya. Akibatnya empat tombol toolbar
+ * dilaporkan sebagai target sentuh yang terlalu kecil pada SETIAP halaman —
+ * temuan palsu yang menenggelamkan temuan sungguhan.
+ *
+ * Fungsi ini naik melewati batas shadow, jadi hasil audit sama saja baik
+ * dijalankan terhadap `npm run dev` maupun `npm run preview`.
+ */
+const DEV_TOOLBAR_FILTER = `
+  window.__bukanDevToolbar = (el) => {
+    for (let node = el; node; ) {
+      if (node.nodeType === 1 && node.tagName.startsWith('ASTRO-DEV-TOOLBAR')) return false;
+      const parent = node.parentNode;
+      node = parent && parent.nodeType === 11 ? parent.host : parent;
+    }
+    return true;
+  };
+`;
+
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
 // ---------------------------------------------------------------- desktop
 const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await desktop.addInitScript({ content: DEV_TOOLBAR_FILTER });
 
 for (const path of PAGES) {
   console.log(`\n${path}`);
@@ -49,7 +81,7 @@ for (const path of PAGES) {
     'Urutan heading logis (tidak melompat lebih dari satu level)',
     await desktop.evaluate(() => {
       const levels = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]
-        .filter((el) => !el.closest('astro-dev-toolbar'))
+        .filter((el) => window.__bukanDevToolbar(el))
         .map((el) => ({ level: Number(el.tagName[1]), text: el.textContent.trim().slice(0, 40) }));
       const problems = [];
       if (levels.filter((l) => l.level === 1).length !== 1) {
@@ -70,7 +102,7 @@ for (const path of PAGES) {
     'Setiap control punya accessible name',
     await desktop.$$eval('button, a', (els) =>
       els
-        .filter((el) => !el.closest('astro-dev-toolbar'))
+        .filter((el) => window.__bukanDevToolbar(el))
         .filter(
           (el) =>
             !(el.innerText || '').trim() &&
@@ -86,7 +118,7 @@ for (const path of PAGES) {
     'Setiap input punya label',
     await desktop.$$eval('input, select, textarea', (els) =>
       els
-        .filter((el) => !el.closest('astro-dev-toolbar'))
+        .filter((el) => window.__bukanDevToolbar(el))
         .filter(
           (el) =>
             !el.getAttribute('aria-label') &&
@@ -101,6 +133,7 @@ for (const path of PAGES) {
     'Link eksternal memakai rel="noopener"',
     await desktop.$$eval('a[target="_blank"]', (els) =>
       els
+        .filter((el) => window.__bukanDevToolbar(el))
         .filter((el) => !(el.getAttribute('rel') || '').includes('noopener'))
         .map((el) => el.outerHTML.slice(0, 80)),
     ),
@@ -114,6 +147,7 @@ for (const path of PAGES) {
       // breadcrumb (01-PRODUCT-BRIEF §7 "no dead ends").
       if (p.startsWith('/404')) return [];
       const depth = p
+        .split('?')[0]
         .replace(/\/$|\.html$/, '')
         .split('/')
         .filter(Boolean).length;
@@ -135,6 +169,7 @@ const mobileCtx = await browser.newContext({
   viewport: { width: 390, height: 844 },
   isMobile: true,
 });
+await mobileCtx.addInitScript({ content: DEV_TOOLBAR_FILTER });
 const mobile = await mobileCtx.newPage();
 
 for (const path of PAGES) {
@@ -157,7 +192,7 @@ for (const path of PAGES) {
       'a.btn, button, a.link-action, a.brand, .menu-mobile a, .filters__group a',
       (els) =>
         els
-          .filter((el) => !el.closest('astro-dev-toolbar'))
+          .filter((el) => window.__bukanDevToolbar(el))
           .filter((el) => {
             const r = el.getBoundingClientRect();
             return r.width > 0 && r.height > 0 && r.height < 44;

@@ -1,0 +1,41 @@
+# Deployment YTS Hub — 10-DEVELOPMENT-PLAN.md §1.
+#
+# LETAK FILE INI PENTING: harus di root repositori, bukan di dalam yts-hub-web/.
+# Netlify mencari netlify.toml di root, dan `base` di bawah dihitung relatif
+# terhadap letak file ini. Saat file ini masih berada di dalam yts-hub-web/,
+# jalurnya terbaca ganda menjadi yts-hub-web/yts-hub-web dan @netlify/dev —
+# yang ikut membaca berkas ini sejak adapter dipasang pada Fase 4 — berhenti
+# dengan "Base directory does not exist".
+#
+# Hampir seluruh halaman tetap di-build statis: query database berjalan saat
+# build dan yang dikirim ke pengunjung hanya HTML + CSS
+# (09-ACCESSIBILITY-PERFORMANCE-SEO.md §5). Konsekuensinya tidak berubah: build
+# butuh DATABASE_URL, dan konten baru terbit setelah rebuild.
+#
+# Sejak Fase 4 ada pengecualian: /cari dan endpoint /api/* dijalankan sebagai
+# function (lihat astro.config.mjs). Function itu membaca DATABASE_URL saat
+# request, jadi variabel yang sama harus tersedia untuk runtime, bukan hanya build.
+#
+# Set DATABASE_URL di Netlify → Site settings → Environment variables.
+# JANGAN menulis connection string di file ini — file ini ikut ter-commit.
+
+[build]
+  base = "yts-hub-web"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+
+# Aset ber-hash aman di-cache selamanya.
+[[headers]]
+  for = "/_astro/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

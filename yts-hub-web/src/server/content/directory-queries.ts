@@ -9,7 +9,7 @@
  * (FAQ terkait, layanan terkait, program terkait, kontak/next action) agar tidak ada
  * halaman buntu.
  */
-import { and, asc, eq, inArray, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 
 import { getDb } from '@/server/db/client';
 import {
@@ -516,6 +516,111 @@ export async function listFaqCategories() {
     .from(faqCategories)
     .orderBy(asc(faqCategories.label));
 }
+
+/**
+ * Daftar FAQ untuk FAQ Center — 07-SEARCH-AND-FAQ.md §8.
+ *
+ * "FAQ adalah knowledge entity, bukan hardcoded accordion di landing page":
+ * yang dikembalikan di sini adalah entity penuh dengan kategori dan unit
+ * pemiliknya, supaya halaman /faq bisa menyaring keduanya.
+ */
+export async function listFaqs() {
+  return getDb()
+    .select({
+      slug: faqs.slug,
+      question: faqs.question,
+      summary: faqs.summary,
+      categorySlug: faqCategories.slug,
+      categoryLabel: faqCategories.label,
+      unitSlug: units.slug,
+      unitName: units.shortName,
+      helpfulYes: faqs.helpfulYes,
+      isPopular: faqs.isPopular,
+    })
+    .from(faqs)
+    .innerJoin(faqCategories, eq(faqs.categoryId, faqCategories.id))
+    .innerJoin(units, eq(faqs.ownerUnitId, units.id))
+    .where(and(publicOnly(faqs), publicOnly(units)))
+    // Urutan pengelola dulu, lalu kebermanfaatan — sinyal yang sama dengan
+    // peringkat search (07-SEARCH §4 butir 4), supaya daftar dan hasil pencarian
+    // tidak memberi kesan prioritas yang berbeda.
+    .orderBy(asc(faqs.sortOrder), desc(faqs.helpfulYes), asc(faqs.question));
+}
+
+export type FaqListItem = Awaited<ReturnType<typeof listFaqs>>[number];
+
+/**
+ * Detail FAQ — 07-SEARCH-AND-FAQ.md §9.
+ *
+ * `reviewedAt` ikut dikembalikan karena §9 meminta "updated/reviewed date bila
+ * relevan": untuk FAQ, kapan jawabannya terakhir ditinjau adalah bagian dari
+ * jawabannya sendiri.
+ */
+export async function getFaqDetail(slug: string) {
+  const db = getDb();
+  const [faq] = await db
+    .select({
+      id: faqs.id,
+      slug: faqs.slug,
+      code: faqs.code,
+      question: faqs.question,
+      answer: faqs.answer,
+      summary: faqs.summary,
+      seoTitle: faqs.seoTitle,
+      seoDescription: faqs.seoDescription,
+      updatedAt: faqs.updatedAt,
+      reviewedAt: faqs.reviewedAt,
+      helpfulYes: faqs.helpfulYes,
+      helpfulNo: faqs.helpfulNo,
+      categorySlug: faqCategories.slug,
+      categoryLabel: faqCategories.label,
+      unitSlug: units.slug,
+      unitName: units.shortName,
+      unitTitle: units.title,
+    })
+    .from(faqs)
+    .innerJoin(faqCategories, eq(faqs.categoryId, faqCategories.id))
+    .innerJoin(units, eq(faqs.ownerUnitId, units.id))
+    .where(and(publicOnly(faqs), publicOnly(units), eq(faqs.slug, slug)))
+    .limit(1);
+
+  if (!faq) return null;
+
+  const [relatedServices, relatedPrograms, sameCategory] = await Promise.all([
+    db
+      .select({
+        slug: services.slug,
+        title: services.title,
+        summary: services.summary,
+        ctaLabel: services.ctaLabel,
+      })
+      .from(faqsToServices)
+      .innerJoin(services, eq(faqsToServices.serviceId, services.id))
+      .where(and(publicOnly(services), eq(faqsToServices.faqId, faq.id)))
+      .orderBy(asc(services.sortOrder)),
+    db
+      .select({ slug: programs.slug, title: programs.title, summary: programs.summary })
+      .from(faqsToPrograms)
+      .innerJoin(programs, eq(faqsToPrograms.programId, programs.id))
+      .where(and(publicOnly(programs), eq(faqsToPrograms.faqId, faq.id)))
+      .orderBy(asc(programs.sortOrder)),
+    // Cadangan agar halaman tidak buntu bila FAQ ini belum punya relasi apa pun
+    // (02-IA §7 mensyaratkan minimal dua blok related).
+    db
+      .select({ slug: faqs.slug, question: faqs.question })
+      .from(faqs)
+      .innerJoin(faqCategories, eq(faqs.categoryId, faqCategories.id))
+      .where(
+        and(publicOnly(faqs), eq(faqCategories.slug, faq.categorySlug), ne(faqs.id, faq.id)),
+      )
+      .orderBy(asc(faqs.sortOrder))
+      .limit(4),
+  ]);
+
+  return { faq, relatedServices, relatedPrograms, sameCategory };
+}
+
+export type FaqDetail = NonNullable<Awaited<ReturnType<typeof getFaqDetail>>>;
 
 /** Dipakai halaman kontak untuk menampilkan seluruh kanal resmi per unit. */
 export async function listPublicContacts() {

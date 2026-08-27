@@ -1,17 +1,225 @@
 ---
+/**
+ * FAQ Center — 07-SEARCH-AND-FAQ.md §8.
+ *
+ * "FAQ adalah knowledge entity, bukan hardcoded accordion di landing page."
+ * Karena itu halaman ini adalah daftar pertanyaan yang bisa ditelusuri dan
+ * disaring, bukan salinan accordion beranda yang diperpanjang.
+ *
+ * Bentuknya daftar pertanyaan padat — §8 menyebut "compact question list".
+ * Jawabannya sengaja TIDAK ikut ditampilkan di sini: pengguna memindai daftar
+ * ini untuk menemukan pertanyaannya, dan menaruh empat paragraf jawaban di
+ * antara tiap baris justru memperlambat pekerjaan itu.
+ */
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import FilterBar, { type FilterGroup } from '@/components/ui/FilterBar.astro';
+import SearchField from '@/components/search/SearchField.astro';
+import EmptySection from '@/components/ui/EmptySection.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { listFaqs } from '@/server/content/directory-queries';
+
+const faqs = await listFaqs();
+
+const categories = [...new Set(faqs.map((faq) => faq.categorySlug))];
+const units = [...new Set(faqs.map((faq) => faq.unitSlug))];
+const categoryLabel = new Map(faqs.map((faq) => [faq.categorySlug, faq.categoryLabel] as const));
+const unitLabel = new Map(faqs.map((faq) => [faq.unitSlug, faq.unitName] as const));
+
+const groups: FilterGroup[] = [
+  {
+    param: 'kategori',
+    legend: 'Kategori',
+    options: categories.map((slug) => ({
+      label: categoryLabel.get(slug) ?? slug,
+      value: slug,
+      count: faqs.filter((faq) => faq.categorySlug === slug).length,
+    })),
+  },
+  {
+    // §8: "unit filter opsional". FilterBar sendiri yang memutuskan menampilkannya
+    // atau tidak — grup dengan kurang dari dua pilihan tidak dirender.
+    param: 'unit',
+    legend: 'Unit',
+    options: units.map((slug) => ({
+      label: unitLabel.get(slug) ?? slug,
+      value: slug,
+      count: faqs.filter((faq) => faq.unitSlug === slug).length,
+    })),
+  },
+];
 ---
 
 <BaseLayout
   title="FAQ"
-  description="Pusat pertanyaan yang sering diajukan, dikelompokkan per kategori."
+  description="Pertanyaan yang sering diajukan tentang layanan, program, dan unit Yayasan Tarbiyah Sunnah, dikelompokkan per kategori."
   canonicalPath="/faq"
-  noindex
 >
-  <PhasePlaceholder
-    title="FAQ"
-    phase="Fase 4 — FAQ & Search"
-    describes="Pusat pertanyaan yang sering diajukan, dikelompokkan per kategori."
-  />
+  <PageHeader
+    eyebrow="Pusat bantuan"
+    title="Pertanyaan yang sering diajukan"
+    lead="Jawaban singkat untuk hal yang paling sering ditanyakan ke admin. Setiap jawaban mencantumkan unit yang bertanggung jawab dan tautan ke layanan terkait."
+    crumbs={[{ label: 'Beranda', href: '/' }, { label: 'FAQ' }]}
+  >
+    <div class="faq-search">
+      <SearchField
+        id="q-faq"
+        label="Cari pertanyaan"
+        placeholder="Cari pertanyaan, mis. cara mendaftar sekolah"
+      />
+      <p class="faq-search__note">
+        Pencarian ini mencakup seluruh isi YTS Hub, bukan hanya FAQ.
+      </p>
+    </div>
+  </PageHeader>
+
+  <div class="container faq-center">
+    <FilterBar groups={groups} basePath="/faq" noun="pertanyaan" />
+
+    {
+      faqs.length === 0 && (
+        <EmptySection
+          message="Belum ada FAQ yang dipublikasikan."
+          hint="Terbitkan FAQ di admin agar muncul di sini."
+        />
+      )
+    }
+
+    <ul class="faq-list" data-filter-list>
+      {
+        faqs.map((faq) => (
+          <li data-filter-item data-kategori={faq.categorySlug} data-unit={faq.unitSlug}>
+            <a href={`/faq/${faq.slug}`}>
+              <span class="faq-list__question">
+                {faq.question}
+                <Icon name="arrow-right" size={16} />
+              </span>
+              <span class="faq-list__summary">{faq.summary}</span>
+              <span class="faq-list__meta">
+                <span>{faq.categoryLabel}</span>
+                <span>{faq.unitName}</span>
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="filter-empty" data-filter-empty hidden>
+      Tidak ada pertanyaan yang cocok dengan filter ini.
+      <a href="/faq">Tampilkan semua pertanyaan</a>.
+    </p>
+
+    <p class="faq-center__contact">
+      Pertanyaan Anda belum terjawab di sini?
+      <a class="link-action" href="/hubungi-kami">
+        Hubungi unit yang bersangkutan
+        <Icon name="arrow-right" size={15} />
+      </a>
+    </p>
+  </div>
 </BaseLayout>
+
+<style>
+  .faq-search {
+    max-width: 620px;
+    margin-top: var(--space-6);
+  }
+
+  .faq-search__note {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .faq-center {
+    padding-block: 0 var(--space-16);
+  }
+
+  .faq-list {
+    padding-block: var(--space-6);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .faq-list li {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .faq-list a {
+    display: block;
+    padding-block: var(--space-4);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .faq-list__question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    font-size: var(--text-body-l);
+    font-weight: 550;
+    line-height: var(--leading-tight);
+  }
+
+  .faq-list a:hover .faq-list__question {
+    color: var(--color-brand-strong);
+  }
+
+  /* :global() wajib: SVG dirender komponen Icon di luar scope file ini. */
+  .faq-list__question :global(svg) {
+    flex: none;
+    color: var(--color-text-muted);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .faq-list a:hover .faq-list__question :global(svg) {
+    transform: translateX(2px);
+  }
+
+  .faq-list__summary {
+    display: block;
+    max-width: 68ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  .faq-list__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .faq-list__meta span + span::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 0.85em;
+    margin-inline-end: var(--space-3);
+    background-color: var(--color-border-strong);
+    vertical-align: -0.1em;
+  }
+
+  .filter-empty {
+    padding-block: var(--space-12);
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  .faq-center__contact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+</style>

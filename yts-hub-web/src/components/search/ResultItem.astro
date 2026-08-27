@@ -1,0 +1,174 @@
+---
+/**
+ * Satu baris hasil pencarian.
+ *
+ * Bentuknya baris, bukan card: hasil pencarian adalah daftar yang dipindai mata
+ * dari atas ke bawah, dan card memberi tiap hasil bobot visual yang sama besar
+ * padahal peringkatnya justru sengaja berbeda (05-HALLMARK-ANTI-SLOP.md §6).
+ *
+ * Kata yang dicari ditandai `<mark>` — bukan lewat string HTML dari server,
+ * melainkan potongan teks yang sudah dipecah menjadi data di search-terms.ts.
+ * Judul konten tidak pernah menjadi markup.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { excerpt, highlightParts } from '@/server/content/search-terms';
+import { entityLabel, type SearchHit } from '@/server/content/search-queries';
+
+interface Props {
+  hit: SearchHit;
+  query: string;
+  /** Peringkat 1-based, dikirim ke analytics saat hasil dibuka (07-SEARCH §11). */
+  rank: number;
+  /** Ditonjolkan sebagai hasil "Paling relevan" di §3. */
+  prominent?: boolean;
+  /**
+   * Jenis entity disembunyikan bila baris ini berada di dalam kelompok yang
+   * sudah menyebutkannya. Judul kelompok "Layanan" diikuti tiga baris yang
+   * masing-masing mengulang "LAYANAN" adalah pengulangan tanpa informasi
+   * (05-HALLMARK-ANTI-SLOP.md §6). Hasil "Paling relevan" berdiri di luar
+   * kelompok mana pun, jadi di sana jenisnya tetap ditampilkan.
+   */
+  showType?: boolean;
+}
+
+const { hit, query, rank, prominent = false, showType = true } = Astro.props;
+
+const titleParts = highlightParts(hit.title, query);
+const summaryParts = highlightParts(excerpt(hit.summary, query), query);
+---
+
+<li class:list={['result', { 'result--prominent': prominent }]}>
+  <a href={hit.href} data-result data-entity={hit.type} data-slug={hit.slug} data-rank={rank}>
+    <p class="result__meta">
+      {showType && <span class="result__type">{entityLabel[hit.type]}</span>}
+      {hit.note && <span class="result__note">{hit.note}</span>}
+      {hit.unitName && <span class="result__unit">{hit.unitName}</span>}
+    </p>
+
+    <p class="result__title">
+      {titleParts.map((part) => (part.match ? <mark>{part.text}</mark> : <span>{part.text}</span>))}
+    </p>
+
+    <p class="result__summary">
+      {
+        summaryParts.map((part) =>
+          part.match ? <mark>{part.text}</mark> : <span>{part.text}</span>,
+        )
+      }
+    </p>
+
+    {
+      prominent && (
+        <span class="result__cta link-action">
+          Buka
+          <Icon name="arrow-right" size={15} />
+        </span>
+      )
+    }
+  </a>
+</li>
+
+<style>
+  .result {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .result > a {
+    display: block;
+    padding-block: var(--space-4);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .result > a:hover .result__title {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .result__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .result__type {
+    color: var(--color-brand-strong);
+    font-weight: 600;
+  }
+
+  /* Pemisah sebagai garis tipis, bukan titik atau pill — konsisten dengan
+     meta di halaman listing Fase 3. */
+  .result__note::before,
+  .result__unit::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 0.85em;
+    margin-inline-end: var(--space-3);
+    background-color: var(--color-border-strong);
+    vertical-align: -0.1em;
+  }
+
+  /* Di dalam kelompok, jenis entity tidak dirender — tanpa aturan ini baris
+     meta akan dimulai dengan garis pemisah yang tidak memisahkan apa pun. */
+  .result__meta > :first-child::before {
+    display: none;
+  }
+
+  .result__title {
+    margin-top: var(--space-2);
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    font-weight: 600;
+    line-height: var(--leading-heading);
+    letter-spacing: var(--tracking-heading);
+  }
+
+  .result__summary {
+    max-width: 68ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  /* Penanda kecocokan: latar tenang + bobot teks, bukan warna menyala yang
+     merebut perhatian dari judulnya sendiri. */
+  .result mark {
+    background-color: var(--color-surface-brand);
+    color: inherit;
+    font-weight: 600;
+    border-radius: 2px;
+  }
+
+  /* ---- Hasil paling relevan ---- */
+  .result--prominent {
+    border-bottom: 0;
+  }
+
+  .result--prominent > a {
+    padding: var(--space-6);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    /* Aksen di tepi kiri menandai "ini yang teratas" tanpa menambah warna
+       latar penuh yang akan membuatnya terbaca sebagai iklan. */
+    border-inline-start: 3px solid var(--color-brand);
+  }
+
+  .result--prominent .result__title {
+    font-size: var(--text-h2);
+  }
+
+  .result--prominent .result__summary {
+    font-size: var(--text-body);
+  }
+
+  .result__cta {
+    margin-top: var(--space-4);
+  }
+</style>

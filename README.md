@@ -7,10 +7,11 @@ Yayasan Tarbiyah Sunnah.
 
 ## Isi repository
 
-| Folder         | Isi                                                                 |
-| -------------- | ------------------------------------------------------------------- |
-| `yts-hub-md/`  | Dokumen requirement — brief, IA, UI/UX, design system, content model |
-| `yts-hub-web/` | Implementasi web publik (Astro)                                     |
+| Folder          | Isi                                                                 |
+| --------------- | ------------------------------------------------------------------- |
+| `yts-hub-md/`   | Dokumen requirement — brief, IA, UI/UX, design system, content model |
+| `yts-hub-web/`  | Implementasi web publik (Astro)                                     |
+| `netlify.toml`  | Konfigurasi deploy — harus di root, lihat komentar di dalamnya       |
 
 Mulai dari [`yts-hub-md/README.md`](yts-hub-md/README.md) untuk indeks dokumen, dan
 [`yts-hub-web/README.md`](yts-hub-web/README.md) untuk cara menjalankan aplikasinya.
@@ -25,7 +26,7 @@ Mengikuti `yts-hub-md/10-DEVELOPMENT-PLAN.md`:
 | 1    | Landing page + shell, typed mock data           | Selesai |
 | 2    | Core registry & database                        | Selesai |
 | 3    | Public directory routes + detail pages          | Selesai |
-| 4    | FAQ center & unified search                     | Belum   |
+| 4    | FAQ center & unified search                     | Selesai |
 | 5    | Admin & governance                              | Belum   |
 | 6    | Integrasi & broken-link monitoring              | Belum   |
 | 7    | Observability & quality                         | Belum   |
@@ -37,4 +38,5 @@ Baca `yts-hub-md/11-AI-CODING-INSTRUCTIONS.md` sebelum mulai. Untuk setiap perub
 
 Aturan yang paling sering dilanggar dan paling penting di proyek ini: **jangan mengarang
 data YTS** — statistik, biaya, tanggal, alamat, nomor kontak, testimonial. Gunakan
-placeholder eksplisit. Ada test yang menjaga aturan ini di `yts-hub-web/src/data/`.
+placeholder eksplisit. Ada test yang menjaga aturan ini di
+`yts-hub-web/src/server/db/seed-data.test.ts`.

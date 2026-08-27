@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .astro/
+# Keluaran adapter Netlify (function SSR + config), dibuat ulang tiap build.
+.netlify/
 .env
 .env.*
 !.env.example

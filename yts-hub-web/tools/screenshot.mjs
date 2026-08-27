@@ -21,6 +21,25 @@ const shots = [
   { name: 'unit-detail-desktop', width: 1440, height: 900, path: '/unit/ts-lab-school' },
   { name: 'program-desktop', width: 1440, height: 900, path: '/program' },
   { name: 'event-desktop', width: 1440, height: 900, path: '/event' },
+  // Fase 4 — pencarian & FAQ.
+  { name: 'cari-hasil-desktop', width: 1440, height: 900, path: '/cari?q=donasi' },
+  { name: 'cari-kosong-desktop', width: 1440, height: 900, path: '/cari?q=sekolh' },
+  { name: 'faq-desktop', width: 1440, height: 900, path: '/faq' },
+  { name: 'faq-detail-desktop', width: 1440, height: 900, path: '/faq/cara-berdonasi' },
+  {
+    name: 'cari-autocomplete-desktop',
+    width: 1440,
+    height: 900,
+    full: false,
+    async before(page) {
+      await page.fill('[data-search-input]', 'don');
+      await page.waitForSelector('[data-search-suggestions] [role="option"]');
+      await page.waitForTimeout(200);
+    },
+  },
+  { name: 'cari-hasil-mobile', width: 390, height: 844, mobile: true, path: '/cari?q=donasi' },
+  { name: 'faq-mobile', width: 390, height: 844, mobile: true, path: '/faq' },
+  { name: 'faq-detail-mobile', width: 390, height: 844, mobile: true, path: '/faq/cara-berdonasi' },
   { name: 'layanan-mobile', width: 390, height: 844, mobile: true, path: '/layanan' },
   {
     name: 'unit-detail-mobile',

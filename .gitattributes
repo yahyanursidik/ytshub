@@ -1,0 +1,20 @@
+# Akhir baris LF di seluruh working tree, apa pun sistem operasinya.
+#
+# Tanpa ini, checkout di Windows dengan `core.autocrlf=true` mengubah setiap file
+# menjadi CRLF, sementara Prettier memeriksa dengan asumsi LF — akibatnya
+# `npm run format:check` melaporkan SELURUH file bermasalah, termasuk file yang
+# belum pernah disentuh siapa pun. Isi yang tersimpan di repositori tidak berubah
+# karena berkas ini; yang dijaga adalah bentuknya saat berada di working tree.
+#
+# Bila salinan kerja Anda dibuat sebelum berkas ini ada, jalankan sekali:
+#   git add --renormalize .
+* text=auto eol=lf
+
+# Berkas biner tidak boleh disentuh sama sekali.
+*.png binary
+*.jpg binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ico binary
+*.bundle binary

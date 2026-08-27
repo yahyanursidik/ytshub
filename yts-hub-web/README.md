@@ -2,7 +2,7 @@
 
 Implementasi web publik YTS Hub mengikuti dokumen requirement di `yts-hub-md/`.
 
-**Status: Fase 0, 1, dan 2 selesai.** Fase 3 (directory routes) dan seterusnya belum dikerjakan.
+**Status: Fase 0–4 selesai.** Fase 5 (admin & governance) dan seterusnya belum dikerjakan.
 
 ## Menjalankan
 
@@ -89,12 +89,15 @@ TypeScript 7. Naikkan bersama-sama saat `@astrojs/check` sudah kompatibel.
 src/
 ├── components/
 │   ├── landing/        # section landing page, satu file per section
+│   ├── search/         # kolom pencarian, baris hasil, feedback FAQ
 │   ├── ui/             # primitive lintas halaman (Icon, placeholder, notice)
 │   ├── SiteHeader.astro
 │   └── SiteFooter.astro
 ├── config/navigation.ts  # navigasi & task shortcut (struktur produk, bukan konten)
 ├── layouts/BaseLayout.astro
 ├── pages/              # route publik sesuai 02-INFORMATION-ARCHITECTURE.md §8
+│   ├── cari.astro      # dirender saat request (prerender = false)
+│   └── api/            # endpoint saran, klik hasil, feedback FAQ
 ├── server/             # KODE SERVER — jangan diimpor dari komponen klien
 │   ├── db/
 │   │   ├── schema.ts   # core registry (06-CONTENT-MODEL-AND-CMS.md)
@@ -102,13 +105,20 @@ src/
 │   │   ├── migrate.ts
 │   │   ├── seed.ts     # loader seed, idempoten
 │   │   └── seed-data.ts # DATA PENGEMBANGAN — bukan data resmi YTS
-│   ├── content/public-queries.ts  # satu-satunya jalan konten publik keluar
+│   ├── content/
+│   │   ├── public-queries.ts     # satu-satunya jalan konten publik keluar
+│   │   ├── directory-queries.ts  # listing & detail (Fase 3-4)
+│   │   ├── search-queries.ts     # pencarian terpadu & peringkatnya
+│   │   ├── search-terms.ts       # olah teks query — tanpa database, teruji unit
+│   │   └── search-analytics.ts   # log pencarian & feedback FAQ
 │   └── env.ts          # validasi environment
 ├── styles/
 │   ├── tokens.css      # design tokens — sumber tunggal warna/tipografi/spacing
 │   └── base.css        # reset ringan, layout primitive, button, input, focus
 └── types/content.ts    # kontrak konten dari 06-CONTENT-MODEL-AND-CMS.md
-drizzle/                # migrasi SQL — di-commit, jangan diedit tangan
+drizzle/                # migrasi SQL — di-commit, jangan diedit tangan kecuali
+                        # statement yang drizzle-kit tidak bisa hasilkan
+                        # (CREATE EXTENSION, index atas ekspresi); beri komentar
 scripts/db.ts           # CLI database
 tools/                  # script screenshot & audit a11y
 ```
@@ -157,6 +167,52 @@ analytics pencarian.
 yang menyatakan fasenya secara jujur, supaya tidak ada dead link dan tidak ada konten
 palsu. Semua halaman ini `noindex`.
 
+**Hampir seluruh halaman statis, kecuali pencarian.** Tiga puluh halaman direktori
+dan FAQ tetap di-prerender saat build seperti Fase 1–3. Yang berjalan saat request
+hanya `/cari` dan endpoint di `src/pages/api/` — ditandai `export const prerender = false`,
+dan itulah satu-satunya sumber kebenaran soal route mana yang menjadi function
+(`tools/check-links.mjs` membaca penanda itu, bukan daftar terpisah).
+
+Alasannya ada tiga, semuanya dari `07-SEARCH-AND-FAQ.md`: halaman hasil bergantung
+pada `?q=` yang baru ada saat pengunjung mengetik; §5 meminta pencarian dijalankan
+PostgreSQL, bukan disalin ke indeks JSON di klien; dan §10–§11 (feedback FAQ,
+pencatatan query) adalah operasi tulis yang tidak punya tempat di HTML statis.
+Konsekuensinya: `DATABASE_URL` kini dibutuhkan saat build **dan** saat runtime.
+
+**Pencarian memakai PostgreSQL Full Text Search dengan konfigurasi `indonesian`.**
+Kolom `search_vector` di enam tabel adalah generated column berbobot (A judul,
+B kategori/ringkasan, C badan teks); peringkatnya disusun di
+`src/server/content/search-queries.ts` mengikuti urutan sinyal `07-SEARCH §4`.
+Angka bobotnya dipilih agar sinyal yang lebih tinggi tidak bisa dikalahkan
+akumulasi sinyal di bawahnya — kecocokan judul persis selalu menang.
+
+Pencocokan dijalankan dua tahap: semua kata wajib ada dulu, dan hanya bila itu
+kosong barulah dilonggarkan menjadi "cukup satu kata". Halaman hasil mengatakannya
+kepada pengguna, bukan diam-diam menampilkan hasil yang lebih longgar.
+
+**Kolom internal registry aplikasi tidak ikut di-index.** Kalau `integration_notes`
+dan kerabatnya masuk `search_vector`, isinya bisa ditebak dari luar dengan menyusun
+query yang cocok. Ada test yang mengisi kolom itu dengan penanda lalu memastikan
+penanda tersebut tidak bisa ditemukan lewat pencarian.
+
+**Autocomplete ditulis tanpa React, berbeda dari rencana Fase 2.** Combobox-nya
+butuh ±2 KB JavaScript; memuat runtime React untuk itu berarti mengirim ±184 KB ke
+setiap halaman yang punya kolom pencarian — termasuk beranda, yang seluruh
+halamannya hari ini lebih ringan daripada itu. Tidak ada state di sana yang menuntut
+framework. React tetap terpasang untuk admin Fase 5, tempat state-nya nyata.
+
+**Analytics pencarian tidak menyimpan identitas.** `search_queries` berisi teks
+query, jumlah hasil, dan hasil mana yang diklik — tidak ada kolom untuk IP, user
+agent, atau session id, dan itu bukan kolom yang dikosongkan melainkan kolom yang
+tidak pernah dibuat (`07-SEARCH §11`). Laporan bisa menjawab "kata apa yang dicari
+dan mana yang tidak menemukan apa pun", tidak bisa menjawab "siapa yang mencarinya".
+
+**Endpoint feedback FAQ belum punya pembatasan laju.** Satu orang bisa menekan
+"Ya" berkali-kali. Untuk MVP itu diterima: yang terpengaruh hanya urutan FAQ, bukan
+isi jawabannya, dan `faq_feedback` menyimpan tiap kejadian sehingga angka yang
+menyimpang bisa ditelusuri lalu direkonsiliasi. Pembatasan laju masuk bersama
+governance pada Fase 5.
+
 ## Yang belum dikerjakan
 
 | Fase | Isi                                             | Status  |
@@ -164,15 +220,18 @@ palsu. Semua halaman ini `noindex`.
 | 0    | Repo, tooling, design tokens, base layout       | Selesai |
 | 1    | Landing page + shell, mock data typed           | Selesai |
 | 2    | Core registry & database (Neon + Drizzle)       | Selesai |
-| 3    | Public directory routes + detail pages          | Belum   |
-| 4    | FAQ center & unified search                     | Belum   |
+| 3    | Public directory routes + detail pages          | Selesai |
+| 4    | FAQ center & unified search                     | Selesai |
 | 5    | Admin & governance (RBAC, lifecycle, audit log) | Belum   |
 | 6    | Integrasi & broken-link monitoring              | Belum   |
 | 7    | Observability & quality                         | Belum   |
 
 ## Deployment (Netlify)
 
-`netlify.toml` sudah disiapkan: base `yts-hub-web`, publish `dist`, Node 22.
+`netlify.toml` ada **di root repositori**, bukan di dalam `yts-hub-web/`: base
+`yts-hub-web`, publish `dist`, Node 22. Letak itu bukan selera — `base` dihitung
+relatif terhadap posisi berkasnya, jadi saat berkas itu berada di dalam
+`yts-hub-web/` jalurnya terbaca ganda menjadi `yts-hub-web/yts-hub-web`.
 
 Yang perlu diisi manual di **Site settings → Environment variables**:
 
@@ -180,11 +239,23 @@ Yang perlu diisi manual di **Site settings → Environment variables**:
 | -------------- | ---------------------- |
 | `DATABASE_URL` | Connection string Neon |
 
-Jangan pernah menulis connection string ke `netlify.toml` — file itu ikut ter-commit.
+Sejak Fase 4 variabel itu dibaca saat build **dan** saat request, karena `/cari`
+dan `/api/*` berjalan sebagai function. Jangan pernah menulis connection string ke
+`netlify.toml` — file itu ikut ter-commit.
 
-Karena situs di-build statis, **konten baru terbit setelah rebuild**, bukan seketika
-setelah editor menekan publish. Pada Fase 5 ini perlu disambungkan: build hook Netlify
-yang dipanggil saat konten dipublikasikan.
+Halaman selain pencarian tetap statis, jadi **konten baru terbit setelah rebuild**,
+bukan seketika setelah editor menekan publish. Pada Fase 5 ini perlu disambungkan:
+build hook Netlify yang dipanggil saat konten dipublikasikan.
+
+### `npm run dev` dijalankan dari root repositori
+
+Script `dev` sengaja berisi `cd .. && astro dev --root yts-hub-web`. Emulator
+Netlify yang ikut aktif bersama adapter membaca `netlify.toml` dan menghitung
+`base` relatif terhadap direktori kerja; kalau `astro dev` dijalankan dari dalam
+`yts-hub-web`, jalurnya menjadi `yts-hub-web/yts-hub-web`, direktori itu tidak ada,
+dan dev server mati sebelum siap **tanpa pesan apa pun di terminal** — jejaknya
+hanya tertinggal di `.astro/dev.log`. Kalau suatu saat dev server berhenti diam-diam,
+periksa berkas itu lebih dulu.
 
 ## Catatan untuk Fase 3 dan seterusnya
 

@@ -1,0 +1,380 @@
+---
+/**
+ * Kolom pencarian dengan autocomplete — 07-SEARCH-AND-FAQ.md §6.
+ *
+ * ## Kenapa bukan komponen React
+ *
+ * README Fase 2 menyebut React akan dipakai untuk search autocomplete. Setelah
+ * dikerjakan, itu tidak dilakukan: combobox ini butuh sekitar 2 KB JavaScript,
+ * sedangkan memuat runtime React untuk mendapatkannya berarti mengirim ±184 KB ke
+ * setiap halaman yang punya kolom pencarian — termasuk beranda, yang seluruh
+ * halamannya hari ini lebih ringan daripada itu. 09-ACCESSIBILITY-PERFORMANCE-SEO.md
+ * §5 meminta biaya hydration ditekan, dan tidak ada state di sini yang menuntut
+ * framework. React tetap terpasang untuk admin Fase 5, tempat state-nya nyata.
+ *
+ * ## Tanpa JavaScript
+ *
+ * Elemen dasarnya adalah `<form action="/cari" method="get">` biasa. Tanpa JS,
+ * mengetik lalu menekan Enter tetap membuka halaman hasil — autocomplete hanya
+ * hilang. Karena itu daftar saran dirender kosong dari server dan diisi klien.
+ *
+ * ## Pola ARIA
+ *
+ * Mengikuti combobox WAI-ARIA 1.2: input `role="combobox"` dengan
+ * `aria-expanded`/`aria-activedescendant`, daftar `role="listbox"`, tiap saran
+ * `role="option"`. Panah atas/bawah memindah pilihan tanpa memindahkan fokus dari
+ * input, Enter membuka saran terpilih, Escape menutup daftar.
+ */
+import Icon from '@/components/ui/Icon.astro';
+
+interface Props {
+  /** Nilai awal — diisi halaman hasil agar query tetap terlihat setelah submit. */
+  value?: string;
+  /** Ukuran besar dipakai di hero beranda; ukuran biasa di halaman lain. */
+  size?: 'hero' | 'inline';
+  label?: string;
+  placeholder?: string;
+  /** id unik bila ada lebih dari satu kolom pencarian di satu halaman. */
+  id?: string;
+  autofocus?: boolean;
+}
+
+const {
+  value = '',
+  size = 'inline',
+  label = 'Cari informasi dan layanan YTS',
+  placeholder = 'Cari program, layanan, FAQ, atau aplikasi YTS',
+  id = 'q',
+  autofocus = false,
+} = Astro.props;
+
+const listId = `${id}-saran`;
+const statusId = `${id}-status`;
+---
+
+<form
+  class:list={['search', `search--${size}`]}
+  action="/cari"
+  method="get"
+  role="search"
+  data-search-form
+>
+  <label class="visually-hidden" for={id}>{label}</label>
+  <div class="search__field">
+    <Icon name="search" size={size === 'hero' ? 22 : 20} class="search__icon" />
+    <input
+      type="search"
+      id={id}
+      name="q"
+      value={value}
+      placeholder={placeholder}
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      enterkeyhint="search"
+      role="combobox"
+      aria-expanded="false"
+      aria-controls={listId}
+      aria-autocomplete="list"
+      aria-describedby={statusId}
+      autofocus={autofocus}
+      data-search-input
+    />
+    <button type="submit" class="btn btn--primary search__submit">Cari</button>
+  </div>
+
+  <ul class="search__suggestions" id={listId} role="listbox" aria-label="Saran pencarian" hidden
+    data-search-suggestions>
+  </ul>
+
+  <p class="visually-hidden" id={statusId} role="status" aria-live="polite" data-search-status></p>
+</form>
+
+<script>
+  interface Suggestion {
+    label: string;
+    href: string;
+    kind: string;
+  }
+
+  const KIND_LABEL: Record<string, string> = {
+    query: 'Pencarian populer',
+    faq: 'FAQ',
+    service: 'Layanan',
+    program: 'Program',
+    unit: 'Unit',
+    event: 'Event',
+    application: 'Aplikasi',
+  };
+
+  for (const form of document.querySelectorAll<HTMLFormElement>('[data-search-form]')) {
+    const input = form.querySelector<HTMLInputElement>('[data-search-input]');
+    const list = form.querySelector<HTMLElement>('[data-search-suggestions]');
+    const status = form.querySelector<HTMLElement>('[data-search-status]');
+    if (!input || !list) continue;
+
+    let items: Suggestion[] = [];
+    let active = -1;
+    // Membatalkan permintaan sebelumnya saat pengguna terus mengetik. Tanpa ini
+    // jawaban yang datang terlambat bisa menimpa jawaban untuk kata yang lebih baru.
+    let pending: AbortController | null = null;
+
+    const close = () => {
+      list.hidden = true;
+      list.replaceChildren();
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+      items = [];
+      active = -1;
+    };
+
+    const setActive = (next: number) => {
+      const options = [...list.querySelectorAll<HTMLElement>('[role="option"]')];
+      options.forEach((option, index) => {
+        const isActive = index === next;
+        option.setAttribute('aria-selected', String(isActive));
+        option.classList.toggle('is-active', isActive);
+      });
+      active = next;
+      const current = options[next];
+      if (current) input.setAttribute('aria-activedescendant', current.id);
+      else input.removeAttribute('aria-activedescendant');
+    };
+
+    const render = (suggestions: Suggestion[]) => {
+      items = suggestions;
+      active = -1;
+
+      if (suggestions.length === 0) {
+        close();
+        return;
+      }
+
+      list.replaceChildren(
+        ...suggestions.map((suggestion, index) => {
+          const li = document.createElement('li');
+          li.id = `${input.id}-saran-${index}`;
+          li.setAttribute('role', 'option');
+          li.setAttribute('aria-selected', 'false');
+
+          const link = document.createElement('a');
+          link.href = suggestion.href;
+          link.tabIndex = -1;
+          link.textContent = suggestion.label;
+
+          const kind = document.createElement('span');
+          kind.className = 'search__kind';
+          kind.textContent = KIND_LABEL[suggestion.kind] ?? suggestion.kind;
+
+          link.append(kind);
+          li.append(link);
+          return li;
+        }),
+      );
+
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      if (status) {
+        status.textContent = `${suggestions.length} saran tersedia. Gunakan panah atas dan bawah untuk memilih.`;
+      }
+    };
+
+    const fetchSuggestions = async (value: string) => {
+      pending?.abort();
+      if (value.trim().length < 2) {
+        close();
+        return;
+      }
+
+      const controller = new AbortController();
+      pending = controller;
+
+      try {
+        const response = await fetch(`/api/cari/saran.json?q=${encodeURIComponent(value)}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(String(response.status));
+        render((await response.json()) as Suggestion[]);
+      } catch (error) {
+        // Autocomplete adalah pelengkap. Kalau gagal, kolom pencarian biasa tetap
+        // berfungsi penuh — jadi daftarnya ditutup diam-diam, tanpa pesan error
+        // yang tidak bisa ditindaklanjuti pengunjung.
+        if ((error as Error).name !== 'AbortError') close();
+      }
+    };
+
+    let debounce: ReturnType<typeof setTimeout>;
+    input.addEventListener('input', () => {
+      clearTimeout(debounce);
+      const value = input.value;
+      debounce = setTimeout(() => void fetchSuggestions(value), 160);
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (list.hidden || items.length === 0) return;
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActive((active + 1) % items.length);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActive(active <= 0 ? items.length - 1 : active - 1);
+      } else if (event.key === 'Enter' && active >= 0) {
+        const target = items[active];
+        if (target) {
+          event.preventDefault();
+          window.location.href = target.href;
+        }
+      } else if (event.key === 'Escape') {
+        close();
+      }
+    });
+
+    list.addEventListener('mousedown', (event) => {
+      // mousedown, bukan click: blur pada input akan menutup daftar lebih dulu
+      // dan klik tidak pernah sampai ke tautannya.
+      const link = (event.target as HTMLElement).closest('a');
+      if (link) {
+        event.preventDefault();
+        window.location.href = link.href;
+      }
+    });
+
+    input.addEventListener('blur', () => setTimeout(close, 120));
+    form.addEventListener('submit', close);
+  }
+</script>
+
+<style>
+  .search {
+    position: relative;
+    width: 100%;
+  }
+
+  .search--hero {
+    margin-top: clamp(1.75rem, 1.2rem + 2.4vw, 2.75rem);
+    max-width: 720px;
+  }
+
+  .search__field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    background-color: var(--color-surface);
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+    padding: var(--space-2);
+    padding-inline-start: var(--space-4);
+    transition: border-color var(--dur) var(--ease);
+  }
+
+  /* Fokus ditampilkan pada field, bukan input telanjang di dalamnya. */
+  .search__field:focus-within {
+    border-color: var(--color-brand);
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* :global() wajib: SVG dirender komponen Icon di luar scope file ini. */
+  .search__field :global(.search__icon) {
+    flex: none;
+    color: var(--color-text-muted);
+  }
+
+  .search__field input {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    padding: 0;
+    background: none;
+    border: 0;
+    font-size: var(--text-body-l);
+  }
+
+  .search--inline .search__field input {
+    min-height: 44px;
+    font-size: var(--text-body);
+  }
+
+  .search__field input:focus-visible {
+    outline: none;
+  }
+
+  .search__field input::-webkit-search-cancel-button {
+    cursor: pointer;
+  }
+
+  .search__submit {
+    flex: none;
+    min-height: 48px;
+  }
+
+  .search--inline .search__submit {
+    min-height: 40px;
+    padding-inline: var(--space-4);
+    font-size: var(--text-small);
+  }
+
+  /* ---- Daftar saran ---- */
+  .search__suggestions {
+    position: absolute;
+    z-index: 40;
+    inset-inline: 0;
+    top: calc(100% + var(--space-2));
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-popover);
+    overflow: hidden;
+  }
+
+  .search__suggestions :global(li + li) {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .search__suggestions :global(a) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    min-height: 44px;
+    padding: var(--space-3) var(--space-4);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .search__suggestions :global(li.is-active a),
+  .search__suggestions :global(a:hover) {
+    background-color: var(--color-surface-brand);
+    color: var(--color-brand-strong);
+  }
+
+  .search__suggestions :global(.search__kind) {
+    flex: none;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 600px) {
+    .search__field {
+      flex-wrap: wrap;
+      padding-inline-start: var(--space-3);
+    }
+
+    .search__field input {
+      flex: 1 1 8rem;
+      min-height: 44px;
+      font-size: var(--text-body);
+    }
+
+    /* `.search` ikut ditulis agar spesifisitasnya menyamai `.search--inline
+       .search__submit` di atas — tanpa itu ukuran 40px varian inline menang di
+       mobile juga, dan tombol Cari turun di bawah batas 44px (09-A11Y §2). */
+    .search .search__submit {
+      min-height: 44px;
+      padding-inline: var(--space-4);
+    }
+  }
+</style>

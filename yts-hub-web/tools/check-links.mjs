@@ -14,6 +14,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 const DIST = 'dist';
+const PAGES = 'src/pages';
 
 async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -28,6 +29,31 @@ async function walk(dir) {
 
 const allFiles = await walk(DIST);
 const htmlFiles = allFiles.filter((file) => file.endsWith('.html'));
+
+/**
+ * Route yang dirender saat request (Fase 4: /cari dan endpoint di /api).
+ *
+ * Halaman seperti ini tidak menghasilkan file di dist/, jadi tanpa daftar ini
+ * setiap tautan ke /cari akan dilaporkan putus padahal justru berfungsi.
+ *
+ * Daftarnya DITURUNKAN dari file halaman, bukan ditulis tangan di sini: penanda
+ * `export const prerender = false` di file itulah satu-satunya sumber kebenaran,
+ * dan salinan manual pasti akan tertinggal saat route berikutnya ditambahkan.
+ */
+const serverRoutes = new Set();
+for (const file of await walk(PAGES)) {
+  const source = await readFile(file, 'utf8');
+  if (!/export\s+const\s+prerender\s*=\s*false/.test(source)) continue;
+
+  const route =
+    '/' +
+    relative(PAGES, file)
+      .split('\\')
+      .join('/')
+      .replace(/\.(astro|ts|js)$/, '')
+      .replace(/(^|\/)index$/, '');
+  serverRoutes.add(route === '' ? '/' : route);
+}
 
 /** Semua path yang benar-benar bisa dibuka. */
 const available = new Set();
@@ -55,6 +81,8 @@ for (const file of htmlFiles) {
 
     checked += 1;
     const path = href.split('#')[0].split('?')[0];
+    if (serverRoutes.has(path.replace(/\/$/, '') || '/')) continue;
+
     const candidates = [path, `${path}/`, `${path}/index.html`, `${path}index.html`];
     if (!candidates.some((candidate) => available.has(candidate))) {
       problems.push(`${page} -> ${href}`);
@@ -62,7 +90,10 @@ for (const file of htmlFiles) {
   }
 }
 
-console.log(`Memeriksa ${checked} tautan internal di ${htmlFiles.length} halaman.`);
+console.log(
+  `Memeriksa ${checked} tautan internal di ${htmlFiles.length} halaman ` +
+    `(+${serverRoutes.size} route yang dirender saat request).`,
+);
 
 if (problems.length > 0) {
   console.log(`\n✗ ${problems.length} tautan menunjuk halaman yang tidak ada:`);
