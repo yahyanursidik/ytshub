@@ -17,6 +17,7 @@
 import { inArray, like, sql } from 'drizzle-orm';
 
 import { schema, type Database } from '@/server/db/client';
+import { nextReviewDate } from '@/server/auth/roles';
 import {
   OFFICIAL_CODE_PREFIX,
   officialApplications,
@@ -120,6 +121,7 @@ export async function runSeed(db: Db): Promise<void> {
         visibility: 'public' as const,
         publishedAt,
         reviewedAt: publishedAt,
+        reviewDueAt: nextReviewDate('unit', publishedAt),
       })),
     )
     .onConflictDoUpdate({
@@ -139,6 +141,7 @@ export async function runSeed(db: Db): Promise<void> {
         // yang dinyatakannya bukan perintah yang idempoten.
         status: sql`excluded.status`,
         visibility: sql`excluded.visibility`,
+        reviewDueAt: sql`excluded.review_due_at`,
         updatedAt: new Date(),
       },
     });
@@ -177,6 +180,7 @@ export async function runSeed(db: Db): Promise<void> {
         visibility: 'public' as const,
         publishedAt,
         reviewedAt: publishedAt,
+        reviewDueAt: nextReviewDate('service', publishedAt),
       })),
     )
     .returning({ id: schema.services.id, slug: schema.services.slug });
@@ -213,6 +217,7 @@ export async function runSeed(db: Db): Promise<void> {
         visibility: 'public' as const,
         publishedAt,
         reviewedAt: publishedAt,
+        reviewDueAt: nextReviewDate('program', publishedAt),
       })),
     )
     .returning({ id: schema.programs.id, slug: schema.programs.slug });
@@ -263,6 +268,7 @@ export async function runSeed(db: Db): Promise<void> {
           visibility: 'public' as const,
           publishedAt,
           reviewedAt: publishedAt,
+          reviewDueAt: nextReviewDate('faq', publishedAt),
         };
       }),
     )
@@ -311,6 +317,7 @@ export async function runSeed(db: Db): Promise<void> {
         visibility: 'public' as const,
         publishedAt,
         reviewedAt: publishedAt,
+        reviewDueAt: nextReviewDate('event', publishedAt),
       };
     }),
   );
@@ -351,6 +358,7 @@ export async function runSeed(db: Db): Promise<void> {
         visibility: 'public' as const,
         publishedAt,
         reviewedAt: publishedAt,
+        reviewDueAt: nextReviewDate('application', publishedAt),
       })),
     )
     .onConflictDoUpdate({
@@ -367,6 +375,7 @@ export async function runSeed(db: Db): Promise<void> {
         sortOrder: sql`excluded.sort_order`,
         status: sql`excluded.status`,
         visibility: sql`excluded.visibility`,
+        reviewDueAt: sql`excluded.review_due_at`,
         updatedAt: new Date(),
       },
     });

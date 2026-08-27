@@ -858,6 +858,118 @@ export const externalLinks = pgTable(
   ],
 );
 
+/* ============================================== observability (Fase 7) */
+
+export const errorLevel = pgEnum('error_level', ['warning', 'error']);
+
+/**
+ * Catatan kesalahan sisi server — 10-DEVELOPMENT-PLAN.md §10 ("error tracking").
+ *
+ * Sebelum tabel ini ada, kesalahan hanya sampai ke `console.error`. Di Netlify
+ * itu berarti tertimbun di log function yang tidak pernah dibuka siapa pun, dan
+ * pengelola YTS tidak punya cara mengetahui bahwa pencarian gagal semalaman.
+ *
+ * ## Digabung, bukan satu baris per kejadian
+ *
+ * Kesalahan yang sama berulang ribuan kali tidak menambah informasi apa pun —
+ * yang bertambah hanya ukuran tabel, sampai daftar kesalahan menjadi terlalu
+ * panjang untuk dibaca dan berhenti dipakai. Karena itu baris dikenali lewat
+ * `fingerprint` (sumber + pesan), dan kejadian berikutnya menaikkan `count`
+ * serta `lastSeenAt`.
+ *
+ * ## Yang tidak disimpan
+ *
+ * Tidak ada IP, user agent, atau isi formulir. 09-ACCESSIBILITY-PERFORMANCE-SEO.md
+ * §8 melarang merekam isi form ke analytics, dan larangan yang sama berlaku di
+ * sini — justru di sinilah godaan terbesarnya, karena "konteks lengkap" terasa
+ * membantu saat menelusuri masalah.
+ */
+export const errorLog = pgTable(
+  'error_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Hash dari sumber + pesan. Kunci penggabungan. */
+    fingerprint: text('fingerprint').notNull(),
+    level: errorLevel('level').notNull().default('error'),
+    /** Bagian sistem yang melaporkan, mis. 'search', 'faq-feedback', 'links'. */
+    source: text('source').notNull(),
+    message: text('message').notNull(),
+    /** Dipotong; yang dibutuhkan hanya beberapa bingkai teratas. */
+    stack: text('stack'),
+    /** Path yang sedang diproses saat kesalahan terjadi, tanpa query string. */
+    path: text('path'),
+    /** Konteks tambahan yang AMAN — tidak boleh memuat masukan pengguna. */
+    context: jsonb('context'),
+    count: integer('count').notNull().default(1),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Ditandai selesai oleh admin; tidak dihapus agar riwayatnya tetap ada. */
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolvedBy: text('resolved_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    uniqueIndex('error_log_fingerprint_key').on(table.fingerprint),
+    index('error_log_last_seen_idx').on(table.lastSeenAt),
+    index('error_log_open_idx').on(table.resolvedAt, table.lastSeenAt),
+  ],
+);
+
+/**
+ * Kunjungan halaman per hari — 09-ACCESSIBILITY-PERFORMANCE-SEO.md §8
+ * ("route views").
+ *
+ * DIAGREGASI PER HARI, bukan satu baris per kunjungan. Itu bukan penghematan
+ * penyimpanan melainkan keputusan privasi: baris per kunjungan, meski tanpa
+ * pengenal, tetap menyimpan urutan waktu yang bisa dirangkai kembali menjadi
+ * jejak seseorang. Penghitung harian tidak bisa.
+ *
+ * Yang bisa dijawab: halaman mana yang dibuka orang, dan tren hariannya.
+ * Yang tidak bisa dijawab: siapa, dari mana, dan halaman apa berikutnya.
+ * Pertanyaan kedua memang bukan kebutuhan produk ini.
+ */
+export const pageViews = pgTable(
+  'page_views',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Path tanpa query string, dinormalisasi. */
+    path: text('path').notNull(),
+    /** Tanggal UTC, bukan timestamp — inilah yang membuatnya tidak bisa dirangkai. */
+    day: text('day').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex('page_views_path_day_key').on(table.path, table.day),
+    index('page_views_day_idx').on(table.day),
+  ],
+);
+
+/**
+ * Klik ke sistem luar — §8 ("service outbound click").
+ *
+ * Inilah ukuran yang paling penting bagi YTS Hub: 01-PRODUCT-BRIEF menyebut
+ * tujuannya membantu orang SAMPAI ke sistem yang menanganinya. Kunjungan halaman
+ * hanya menunjukkan orang datang; klik keluar menunjukkan mereka berhasil pergi
+ * ke tempat yang benar.
+ *
+ * Diagregasi per hari dengan alasan yang sama seperti page_views.
+ */
+export const outboundClicks = pgTable(
+  'outbound_clicks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Halaman asal klik. */
+    path: text('path').notNull(),
+    /** Tujuan, disimpan sebagai host saja — bukan URL lengkap dengan parameter. */
+    targetHost: text('target_host').notNull(),
+    day: text('day').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex('outbound_clicks_key').on(table.path, table.targetHost, table.day),
+    index('outbound_clicks_day_idx').on(table.day),
+  ],
+);
+
 /* -------------------------------------------------------------- relations */
 
 export const unitsRelations = relations(units, ({ many, one }) => ({

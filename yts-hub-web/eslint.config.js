@@ -3,7 +3,18 @@ import tseslint from 'typescript-eslint';
 import astro from 'eslint-plugin-astro';
 
 export default [
-  { ignores: ['dist/**', 'node_modules/**', '.astro/**', 'screenshots/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      '.astro/**',
+      'screenshots/**',
+      // Keluaran adapter Netlify. Bundel hasil build, bukan kode sumber:
+      // melintingnya menghasilkan ratusan temuan tentang kode yang tidak pernah
+      // ditulis siapa pun, dan menenggelamkan temuan yang sebenarnya.
+      '.netlify/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...astro.configs.recommended,
@@ -27,6 +38,8 @@ export default [
         window: 'readonly',
         process: 'readonly',
         getComputedStyle: 'readonly',
+        // tools/budget.mjs mengukur ukuran gzip dan perlu Buffer.
+        Buffer: 'readonly',
       },
     },
     rules: { 'no-console': 'off' },

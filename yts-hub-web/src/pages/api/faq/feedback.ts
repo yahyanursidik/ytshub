@@ -14,6 +14,7 @@
  * server-side authorization memang dikerjakan.
  */
 import type { APIRoute } from 'astro';
+import { reportError } from '@/server/observability/errors';
 
 import {
   attachFaqFeedbackReason,
@@ -71,7 +72,7 @@ export const POST: APIRoute = async ({ request }) => {
       if (!ok) return json({ error: 'Masukan tidak dikenali.' }, 404);
       return json({ ok: true }, 200);
     } catch (error) {
-      console.error('[faq] gagal menyimpan alasan:', error);
+      await reportError(error, { source: 'faq-feedback', path: '/api/faq/feedback', context: { step: 'reason' } });
       return json({ error: 'Alasan gagal disimpan. Coba lagi sebentar lagi.' }, 500);
     }
   }
@@ -98,7 +99,7 @@ export const POST: APIRoute = async ({ request }) => {
     if (!result) return json({ error: 'FAQ tidak ditemukan.' }, 404);
     return json(result, 200);
   } catch (error) {
-    console.error('[faq] gagal menyimpan feedback:', error);
+    await reportError(error, { source: 'faq-feedback', path: '/api/faq/feedback', context: { step: 'answer' } });
     return json({ error: 'Masukan gagal disimpan. Coba lagi sebentar lagi.' }, 500);
   }
 };

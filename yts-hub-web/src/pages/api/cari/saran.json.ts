@@ -8,6 +8,7 @@
 import type { APIRoute } from 'astro';
 
 import { suggest } from '@/server/content/search-queries';
+import { reportError } from '@/server/observability/errors';
 
 export const prerender = false;
 
@@ -25,7 +26,7 @@ export const GET: APIRoute = async ({ url }) => {
       },
     });
   } catch (error) {
-    console.error('[search] saran gagal:', error);
+    await reportError(error, { source: 'search-suggest', path: '/api/cari/saran.json' });
     // Daftar kosong, bukan 500: kolom pencarian di klien memperlakukan kegagalan
     // sebagai "tidak ada saran" dan tetap bisa dipakai.
     return new Response('[]', {

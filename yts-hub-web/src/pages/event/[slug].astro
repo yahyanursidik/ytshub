@@ -46,12 +46,52 @@ const dateFormatter = new Intl.DateTimeFormat('id-ID', {
 });
 
 const isPending = (value: string | null) => !value || value.startsWith('PLACEHOLDER');
+
+/**
+ * Structured data Event — 09-ACCESSIBILITY-PERFORMANCE-SEO.md §6.
+ *
+ * Hanya dipasang bila tanggal mulainya SUDAH ADA. `startDate` wajib menurut
+ * schema.org, dan menandai event tanpa tanggal berarti menyatakan sesuatu yang
+ * halamannya sendiri katakan belum ditetapkan — persis yang dilarang
+ * 05-HALLMARK §7. Selama tanggal belum diisi unit, halaman ini tetap terbit
+ * tanpa markup, dan itu keadaan yang benar.
+ *
+ * `eventAttendanceMode` diturunkan dari format yang memang ditampilkan, bukan
+ * ditebak. Lokasi ikut hanya bila unit sudah mengisinya.
+ */
+const ATTENDANCE_MODE: Record<string, string> = {
+  onsite: 'https://schema.org/OfflineEventAttendanceMode',
+  online: 'https://schema.org/OnlineEventAttendanceMode',
+  hybrid: 'https://schema.org/MixedEventAttendanceMode',
+};
+
+const eventSchema = event.startAt
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Event',
+      name: event.title,
+      description: event.summary,
+      startDate: new Date(event.startAt).toISOString(),
+      endDate: event.endAt ? new Date(event.endAt).toISOString() : undefined,
+      eventAttendanceMode: ATTENDANCE_MODE[event.format],
+      eventStatus: 'https://schema.org/EventScheduled',
+      organizer: {
+        '@type': 'Organization',
+        name: event.unitTitle,
+      },
+      location: isPending(event.location)
+        ? undefined
+        : { '@type': 'Place', name: event.location },
+      url: new URL(`/event/${event.slug}`, Astro.site ?? Astro.url.origin).href,
+    }
+  : undefined;
 ---
 
 <BaseLayout
   title={event.seoTitle ?? event.title}
   description={event.seoDescription ?? event.summary}
   canonicalPath={`/event/${event.slug}`}
+  schema={eventSchema}
 >
   <PageHeader
     eyebrow={formatLabel[event.format] ?? event.format}

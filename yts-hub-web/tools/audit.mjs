@@ -48,7 +48,7 @@ const PAGES = [
  *
  *   YTS_AUDIT_EMAIL=admin@... YTS_AUDIT_PASSWORD=... npm run audit:a11y
  */
-const ADMIN_PAGES = ['/admin', '/admin/layanan', '/admin/faq', '/admin/tautan', '/admin/pengguna'];
+const ADMIN_PAGES = ['/admin', '/admin/layanan', '/admin/faq', '/admin/tautan', '/admin/pemantauan', '/admin/pengguna'];
 
 const auditEmail = process.env.YTS_AUDIT_EMAIL;
 const auditPassword = process.env.YTS_AUDIT_PASSWORD;

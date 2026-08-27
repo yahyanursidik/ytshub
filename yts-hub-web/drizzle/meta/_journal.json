@@ -43,6 +43,13 @@
       "when": 1787848035021,
       "tag": "0005_bizarre_mister_fear",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787849844459,
+      "tag": "0006_fancy_prodigy",
+      "breakpoints": true
     }
   ]
 }

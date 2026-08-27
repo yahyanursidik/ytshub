@@ -13,6 +13,7 @@ export const prerender = false;
 import AdminLayout from '@/layouts/AdminLayout.astro';
 import { getAuth } from '@/server/auth/auth';
 import { getActor } from '@/server/auth/session';
+import { reportError } from '@/server/observability/errors';
 
 /**
  * Tujuan setelah berhasil masuk.
@@ -67,7 +68,7 @@ if (Astro.request.method === 'POST') {
       // memberi tahu penebak bahwa sebuah alamat email terdaftar.
       error = 'Email atau kata sandi tidak cocok.';
     } catch (caught) {
-      console.error('[auth] gagal memproses masuk:', caught);
+      await reportError(caught, { source: 'auth-signin', path: '/admin/masuk' });
       error = 'Sedang ada gangguan di sisi kami. Coba lagi beberapa saat lagi.';
     }
   }

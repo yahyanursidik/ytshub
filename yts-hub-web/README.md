@@ -2,7 +2,7 @@
 
 Implementasi web publik YTS Hub mengikuti dokumen requirement di `yts-hub-md/`.
 
-**Status: Fase 0–6 selesai.** Fase 7 (observability & quality) belum dikerjakan.
+**Status: Fase 0–7 selesai.** Seluruh fase di `10-DEVELOPMENT-PLAN.md` sudah dikerjakan.
 
 ## Menjalankan
 
@@ -47,7 +47,7 @@ Perintah lain:
 | `npm run typecheck`     | `astro check`                                                  |
 | `npm run lint`          | ESLint                                                         |
 | `npm run test`          | Vitest (termasuk guardrail keaslian konten)                    |
-| `npm run verify`        | typecheck + lint + test + build                                |
+| `npm run verify`        | typecheck + lint + test + build + check:links + budget          |
 | `npm run shot`          | Screenshot desktop/tablet/mobile ke `screenshots/`             |
 | `npm run audit:a11y`    | Audit accessibility & layout otomatis                          |
 | `npm run db:generate`   | Membuat file migrasi SQL dari perubahan skema                  |
@@ -59,6 +59,8 @@ Perintah lain:
 | `npm run admin:user`    | Membuat akun admin, menetapkan peran, menyetel ulang kata sandi |
 | `npm run links:check`   | Memeriksa kesehatan seluruh tautan eksternal (memanggil jaringan) |
 | `npm run links:report`  | Menampilkan hasil pemeriksaan terakhir tanpa memanggil jaringan  |
+| `npm run budget`        | Memeriksa berat halaman & JavaScript terhadap batas             |
+| `npm run db:backup`     | Menulis cadangan konten ke `backups/`                           |
 
 ### Akun admin pertama
 
@@ -149,6 +151,10 @@ src/
 │   │   ├── search-queries.ts     # pencarian terpadu & peringkatnya
 │   │   ├── search-terms.ts       # olah teks query — tanpa database, teruji unit
 │   │   └── search-analytics.ts   # log pencarian & feedback FAQ
+│   ├── observability/
+│   │   ├── errors.ts          # pencatatan kesalahan, digabung per masalah
+│   │   ├── usage.ts           # kunjungan & klik keluar, agregat harian
+│   │   └── content-health.ts  # apakah yang terbit layak dibaca publik
 │   ├── integrations/
 │   │   ├── link-status.ts   # PENILAIAN status tautan — tanpa jaringan, teruji unit
 │   │   ├── link-monitor.ts  # mengumpulkan URL, menghubungi, menyimpan hasilnya
@@ -165,8 +171,67 @@ drizzle/                # migrasi SQL — di-commit, jangan diedit tangan kecual
 scripts/db.ts           # CLI database
 scripts/admin.ts        # CLI akun admin & peran
 scripts/links.ts        # CLI pemeriksaan tautan eksternal (dijalankan terjadwal)
-tools/                  # script screenshot & audit a11y
+scripts/backup.ts       # CLI cadangan konten & verifikasinya
+tools/                  # screenshot, audit a11y, budget performa
 ```
+
+## Observability
+
+**Kesalahan sistem punya tempat yang dibaca manusia.** Sebelum Fase 7 seluruh
+kegagalan berakhir di `console.error`, yang di Netlify berarti tertimbun di log
+function — pencarian yang gagal semalaman terlihat sama persis dengan pencarian yang
+tidak pernah dicoba. Sekarang `reportError()` mencatatnya ke database dan menampilkannya
+di `/admin/pemantauan`, dengan dua sifat yang membuatnya tetap terbaca: kejadian yang
+sama digabung menjadi satu baris berpenghitung, dan menandainya selesai tidak menghapus
+riwayat — bila masalahnya kembali, barisnya terbuka lagi.
+
+Yang TIDAK dicatat: isi formulir, teks pencarian, IP, user agent. 09-A11Y §8 melarangnya
+untuk analytics, dan larangan yang sama berlaku di sini — justru di sinilah godaannya
+paling besar karena "konteks lengkap" terasa membantu saat menelusuri masalah.
+
+**Analytics dihitung per hari, bukan per kejadian.** Baris per kunjungan — meski tanpa
+nama, IP, atau cookie — tetap menyimpan urutan waktu yang bisa dirangkai kembali menjadi
+jejak seseorang. Penghitung harian tidak bisa. Yang hilang disebut terus terang: tidak
+ada alur antarhalaman, pengunjung unik, maupun rasio pentalan. Klik keluar hanya
+menyimpan host tujuan, bukan URL berikut parameternya.
+
+Pencatatannya dilakukan dari klien lewat `sendBeacon`, bukan saat halaman dirender —
+30 halaman publik disajikan CDN, dan server tidak pernah tahu halaman itu dibuka.
+Konsekuensinya jujur dan tertulis di halaman admin: pengunjung tanpa JavaScript tidak
+terhitung, jadi angkanya batas bawah.
+
+**Kesehatan konten menjaga janji inti proyek ini.** `/admin/pemantauan` menandai konten
+yang sudah TERBIT tetapi masih memuat teks PLACEHOLDER — pelanggaran 05-HALLMARK §7 yang
+paling mungkin lolos, karena satu-satunya jalannya adalah penerbitan yang tidak diperiksa.
+Laporannya dihitung saat dibuka, tidak disimpan: seluruh datanya sudah ada di tabel
+konten, dan salinan hanya menciptakan kemungkinan laporan basi tanpa ada yang tahu.
+
+**Budget performa menjaga target §4 sebelum rilis, bukan sesudah.** LCP/INP/CLS hanya
+bisa diukur dari pengunjung sungguhan; yang bisa dijaga di CI adalah penyebabnya.
+`npm run budget` mengukur berat HTML dan JavaScript tiap halaman — termasuk skrip yang
+di-inline Astro, yang tanpa itu membuat angkanya terlihat setengah dari kenyataan — lalu
+gagal bila melewati batas. Batasnya ditetapkan dari keadaan yang sudah tercapai plus
+kelonggaran secukupnya: budget yang tidak pernah gagal tidak menjaga apa pun.
+
+## Cadangan
+
+Neon menyimpan riwayat dan bisa memulihkan ke titik waktu mana pun; itu tetap jalur
+pemulihan utama. `npm run db:backup` mengerjakan yang tidak dikerjakan cadangan penyedia:
+mengeluarkan konten ke berkas yang bisa dibaca tanpa Neon, tanpa PostgreSQL, dan tanpa
+aplikasi ini — supaya isi registry dan konten YTS tetap ada bila yayasan pindah penyedia
+atau kehilangan akses akunnya.
+
+`users`, `sessions`, dan `accounts` sengaja TIDAK ikut: berkas cadangan berpindah tangan
+lebih mudah daripada database, dan hash kata sandi tidak boleh ikut berpindah bersamanya.
+
+```bash
+npm run db:backup                          # tulis ke backups/
+npm run db:backup -- verify backups/<x>.json   # periksa keutuhannya
+```
+
+`verify` memeriksa jumlah baris DAN rujukan antarbaris. Cadangan yang rujukannya putus
+tidak bisa dipulihkan utuh, dan itu tidak terlihat sampai hari ia dibutuhkan — cadangan
+yang tidak pernah diperiksa adalah asumsi, bukan cadangan.
 
 ## Menjadwalkan pemeriksaan tautan
 
@@ -402,7 +467,7 @@ pembatasan laju di tingkat Netlify.
 | 4    | FAQ center & unified search                     | Selesai |
 | 5    | Admin & governance (RBAC, lifecycle, audit log) | Selesai |
 | 6    | Integrasi & broken-link monitoring              | Selesai |
-| 7    | Observability & quality                         | Belum   |
+| 7    | Observability & quality                         | Selesai |
 
 ## Deployment (Netlify)
 

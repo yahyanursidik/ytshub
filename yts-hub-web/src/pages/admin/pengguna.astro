@@ -17,6 +17,7 @@ import AdminLayout from '@/layouts/AdminLayout.astro';
 import { GovernanceError } from '@/server/admin/governance';
 import { assignRole, assignableUnits, listUsers, removeRole, setUserActive } from '@/server/admin/users';
 import { can, type Role } from '@/server/auth/roles';
+import { reportError } from '@/server/observability/errors';
 
 const actor = Astro.locals.actor;
 if (!actor) return Astro.redirect('/admin/masuk', 302);
@@ -59,7 +60,7 @@ if (allowed && Astro.request.method === 'POST') {
     if (caught instanceof GovernanceError) {
       error = caught.message;
     } else {
-      console.error('[admin] pengelolaan pengguna gagal:', caught);
+      await reportError(caught, { source: 'admin-users', path: '/admin/pengguna' });
       error = 'Sedang ada gangguan di sisi kami. Perubahan tidak disimpan.';
     }
   }

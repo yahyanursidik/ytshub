@@ -509,3 +509,31 @@
   color: var(--color-text-muted);
   border-style: dashed;
 }
+
+/* -------------------------------------- temuan kesehatan konten (Fase 7) */
+
+/*
+ * Warna ketiga di halaman admin, setelah status lifecycle dan status tautan.
+ * Dibedakan lagi karena ketiganya bisa muncul berdampingan dan tertukar berarti
+ * salah menilai apa yang mendesak.
+ */
+.status--issue-placeholder {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+  background-color: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+.status--issue-field-kosong {
+  color: var(--c-accent-warm);
+  border-color: color-mix(in srgb, var(--c-accent-warm) 50%, transparent);
+}
+
+.status--issue-buntu {
+  color: var(--c-accent-warm);
+  border-color: color-mix(in srgb, var(--c-accent-warm) 50%, transparent);
+}
+
+.status--issue-tanpa-tinjauan {
+  color: var(--color-text-muted);
+  border-style: dashed;
+}

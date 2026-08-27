@@ -18,7 +18,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,astro,css,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,astro,css,md,json}\"",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:links",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:links && npm run budget",
     "shot": "node tools/screenshot.mjs",
     "audit:a11y": "node tools/audit.mjs",
     "check:links": "node tools/check-links.mjs",
@@ -31,7 +31,9 @@
     "db:studio": "drizzle-kit studio",
     "admin:user": "tsx scripts/admin.ts",
     "links:check": "tsx scripts/links.ts check",
-    "links:report": "tsx scripts/links.ts report"
+    "links:report": "tsx scripts/links.ts report",
+    "budget": "node tools/budget.mjs",
+    "db:backup": "tsx scripts/backup.ts"
   },
   "dependencies": {
     "@astrojs/netlify": "8.2.4",

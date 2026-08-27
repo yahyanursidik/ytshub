@@ -73,6 +73,7 @@ const adminShots = [
   { name: 'admin-dasbor', width: 1440, height: 900, path: '/admin' },
   { name: 'admin-daftar', width: 1440, height: 900, path: '/admin/layanan' },
   { name: 'admin-tautan', width: 1440, height: 900, path: '/admin/tautan' },
+  { name: 'admin-pemantauan', width: 1440, height: 900, path: '/admin/pemantauan' },
   { name: 'admin-pengguna', width: 1440, height: 900, path: '/admin/pengguna' },
   { name: 'admin-dasbor-mobile', width: 390, height: 844, mobile: true, path: '/admin' },
 ];

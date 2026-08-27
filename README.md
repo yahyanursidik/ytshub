@@ -29,7 +29,7 @@ Mengikuti `yts-hub-md/10-DEVELOPMENT-PLAN.md`:
 | 4    | FAQ center & unified search                     | Selesai |
 | 5    | Admin & governance                              | Selesai |
 | 6    | Integrasi & broken-link monitoring              | Selesai |
-| 7    | Observability & quality                         | Belum   |
+| 7    | Observability & quality                         | Selesai |
 
 ## Untuk AI coding assistant
 

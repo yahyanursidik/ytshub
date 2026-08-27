@@ -1,0 +1,404 @@
+---
+/**
+ * Pemantauan — 10-DEVELOPMENT-PLAN.md §10.
+ *
+ * Tiga hal yang tidak terjawab halaman admin lain, disatukan karena ketiganya
+ * dibaca dalam satu kebiasaan yang sama: memeriksa apakah ada yang perlu
+ * ditangani hari ini.
+ *
+ * 1. Kesalahan sistem — yang sebelumnya hanya sampai ke log function.
+ * 2. Kesehatan konten — apakah yang sudah terbit layak dibaca publik.
+ * 3. Pemakaian — halaman mana yang dipakai, dan berapa yang sampai ke sistem tujuan.
+ *
+ * Kesalahan dan kesehatan konten dibatasi peran; pemakaian tidak dibatasi unit
+ * karena angkanya memang agregat seluruh situs dan tidak bisa dipecah per unit
+ * tanpa menyimpan lebih banyak daripada yang diizinkan 09-A11Y §8.
+ */
+export const prerender = false;
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { roleFor } from '@/server/auth/roles';
+import { listErrors, resolveError } from '@/server/observability/errors';
+import { contentHealth, ISSUE_LABEL, ISSUE_WHY } from '@/server/observability/content-health';
+import { usageSummary } from '@/server/observability/usage';
+import { ENTITIES } from '@/server/admin/entities';
+
+const actor = Astro.locals.actor;
+if (!actor) return Astro.redirect('/admin/masuk', 302);
+
+const isOrgWide = roleFor(actor, null) !== null;
+const unitIds = isOrgWide
+  ? null
+  : actor.assignments
+      .map((assignment) => assignment.unitId)
+      .filter((unitId): unitId is string => unitId !== null);
+
+/** Hanya admin organisasi yang boleh menandai kesalahan sistem selesai. */
+const canResolve = roleFor(actor, null) === 'admin';
+
+let flash: string | null = null;
+
+if (Astro.request.method === 'POST' && canResolve) {
+  const form = await Astro.request.formData();
+  const id = String(form.get('id') ?? '');
+  if (id) {
+    const ok = await resolveError(id, actor.id);
+    flash = ok ? 'Kesalahan ditandai selesai.' : 'Kesalahan itu sudah ditandai selesai.';
+  }
+}
+
+const [errors, health, usage] = await Promise.all([
+  isOrgWide ? listErrors({ resolved: false }) : Promise.resolve([]),
+  contentHealth(unitIds),
+  isOrgWide ? usageSummary(30) : Promise.resolve(null),
+]);
+
+const formatDateTime = (value: Date | string) =>
+  new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(value),
+  );
+
+const adminHref = (entity: string, id: string) =>
+  `/admin/${ENTITIES[entity as keyof typeof ENTITIES].slug}/${id}`;
+---
+
+<AdminLayout title="Pemantauan" actor={actor}>
+  <div class="admin-head">
+    <div>
+      <h1>Pemantauan</h1>
+      <p>Kesalahan sistem, kesehatan konten terbit, dan pemakaian 30 hari terakhir.</p>
+    </div>
+  </div>
+
+  {flash && <p class="notice notice--ok" role="status">{flash}</p>}
+
+  <!-- ------------------------------------------------------- kesalahan -->
+  {
+    isOrgWide && (
+      <section class="admin-panel">
+        <h2>Kesalahan sistem</h2>
+        <p class="panel__desc">
+          Kejadian yang sama digabung menjadi satu baris; angka di kanan adalah berapa kali ia
+          terjadi. Menandainya selesai tidak menghapus riwayatnya — bila muncul lagi, barisnya
+          terbuka kembali.
+        </p>
+
+        {errors.length === 0 ? (
+          <p class="admin-empty">Tidak ada kesalahan yang belum ditangani.</p>
+        ) : (
+          <div class="errors">
+            {errors.map((entry) => (
+              <article class:list={['error', `error--${entry.level}`]}>
+                <div class="error__head">
+                  <div>
+                    <p class="error__source">
+                      {entry.source}
+                      {entry.path && <span class="error__path">{entry.path}</span>}
+                    </p>
+                    <p class="error__message">{entry.message}</p>
+                  </div>
+                  <div class="error__meta">
+                    <span class="error__count">{entry.count}×</span>
+                    <span>{formatDateTime(entry.lastSeenAt)}</span>
+                  </div>
+                </div>
+
+                {entry.stack && (
+                  <details>
+                    <summary>Jejak tumpukan</summary>
+                    <pre>{entry.stack}</pre>
+                  </details>
+                )}
+
+                {canResolve && (
+                  <form method="post" class="error__action">
+                    <input type="hidden" name="id" value={entry.id} />
+                    <button type="submit" class="btn btn--secondary">
+                      Tandai selesai
+                    </button>
+                  </form>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    )
+  }
+
+  <!-- -------------------------------------------------- kesehatan konten -->
+  <section class="admin-panel">
+    <h2>Kesehatan konten terbit</h2>
+    <p class="panel__desc">
+      Hanya konten yang sudah terbit dan publik yang diperiksa — yang belum terbit memang boleh
+      setengah jadi.
+    </p>
+
+    {
+      health.issues.length === 0 ? (
+        <p class="admin-empty">Tidak ada temuan pada konten terbit.</p>
+      ) : (
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th scope="col">Temuan</th>
+                <th scope="col">Konten</th>
+                <th scope="col">Unit</th>
+                <th scope="col">Kenapa ini penting</th>
+              </tr>
+            </thead>
+            <tbody>
+              {health.issues.map((issue) => (
+                <tr>
+                  <td>
+                    <span class={`status status--issue-${issue.kind}`}>
+                      {ISSUE_LABEL[issue.kind]}
+                    </span>
+                  </td>
+                  <td class="admin-table__title">
+                    <a href={adminHref(issue.entity, issue.entityId)}>{issue.title}</a>
+                    <span class="admin-table__meta">
+                      {ENTITIES[issue.entity].label} · /{issue.slug}
+                    </span>
+                  </td>
+                  <td>{issue.unitName ?? '—'}</td>
+                  <td class="why">{ISSUE_WHY[issue.kind]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+  </section>
+
+  <!-- -------------------------------------------------------- pemakaian -->
+  {
+    isOrgWide && usage && (
+      <section class="admin-panel">
+        <h2>Pemakaian — {usage.days} hari terakhir</h2>
+        <p class="panel__desc">
+          Dihitung per hari tanpa pengenal apa pun, jadi angka ini menjawab "halaman mana yang
+          dipakai" tetapi tidak bisa menjawab "siapa". Pengunjung tanpa JavaScript tidak
+          terhitung — anggap ini batas bawah, bukan jumlah sebenarnya.
+        </p>
+
+        <ul class="totals">
+          <li>
+            <span class="totals__n">{usage.totalViews}</span>
+            <span class="totals__label">kunjungan halaman</span>
+          </li>
+          <li>
+            <span class="totals__n">{usage.totalOutbound}</span>
+            <span class="totals__label">klik ke sistem YTS lain</span>
+          </li>
+        </ul>
+
+        {usage.totalViews === 0 ? (
+          <p class="admin-empty">
+            Belum ada catatan. Ini wajar bila situs belum terbit, atau belum ada yang membukanya
+            sejak fitur ini dipasang.
+          </p>
+        ) : (
+          <div class="usage">
+            <div>
+              <h3>Halaman terbanyak dibuka</h3>
+              <ol class="bars">
+                {usage.topPages.slice(0, 10).map((row) => (
+                  <li>
+                    <span class="bars__label">{row.path}</span>
+                    <span class="bars__value">{row.views}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div>
+              <h3>Tujuan klik keluar</h3>
+              {usage.topDestinations.length === 0 ? (
+                <p class="admin-empty">Belum ada klik ke sistem luar.</p>
+              ) : (
+                <ol class="bars">
+                  {usage.topDestinations.slice(0, 10).map((row) => (
+                    <li>
+                      <span class="bars__label">{row.host}</span>
+                      <span class="bars__value">{row.clicks}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+    )
+  }
+</AdminLayout>
+
+<style>
+  .panel__desc {
+    max-width: 74ch;
+    margin-top: var(--space-1);
+    margin-bottom: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+
+  /* ---- kesalahan ---- */
+  .errors {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .error {
+    padding: var(--space-4);
+    background-color: var(--color-surface-muted);
+    border-inline-start: 3px solid var(--color-danger);
+    border-radius: var(--radius-control);
+  }
+
+  .error--warning {
+    border-inline-start-color: var(--c-accent-warm);
+  }
+
+  .error__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-6);
+  }
+
+  .error__source {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .error__path {
+    margin-inline-start: var(--space-3);
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .error__message {
+    margin-top: var(--space-1);
+    font-size: var(--text-small);
+    font-weight: 550;
+    overflow-wrap: anywhere;
+  }
+
+  .error__meta {
+    display: grid;
+    gap: 2px;
+    justify-items: end;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    white-space: nowrap;
+  }
+
+  .error__count {
+    color: var(--color-danger);
+    font-size: var(--text-small);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .error details {
+    margin-top: var(--space-3);
+    font-size: var(--text-meta);
+  }
+
+  .error summary {
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+
+  .error pre {
+    /* Jejak tumpukan panjang menggulir di dalam kotaknya sendiri, tidak
+       melebarkan halaman. */
+    overflow-x: auto;
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    background-color: var(--color-surface);
+    border-radius: 4px;
+    font-size: var(--text-meta);
+    line-height: 1.5;
+  }
+
+  .error__action {
+    margin-top: var(--space-3);
+  }
+
+  .why {
+    max-width: 46ch;
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  /* ---- pemakaian ---- */
+  .totals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+    margin-bottom: var(--space-6);
+  }
+
+  .totals__n {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  .totals__label {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+  }
+
+  .usage {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  .usage h3 {
+    font-family: var(--font-ui);
+    font-size: var(--text-meta);
+    font-weight: 600;
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .bars {
+    margin-top: var(--space-3);
+  }
+
+  .bars li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-block: var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--text-small);
+  }
+
+  .bars__label {
+    overflow-wrap: anywhere;
+  }
+
+  .bars__value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  @media (min-width: 900px) {
+    .usage {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

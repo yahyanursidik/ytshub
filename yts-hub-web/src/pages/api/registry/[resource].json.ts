@@ -27,6 +27,7 @@
 import type { APIRoute } from 'astro';
 
 import { getServerEnv } from '@/server/env';
+import { reportError } from '@/server/observability/errors';
 import {
   readRegistry,
   REGISTRY_RESOURCES,
@@ -122,7 +123,11 @@ export const GET: APIRoute = async ({ params, clientAddress }) => {
       },
     );
   } catch (error) {
-    console.error(`[registry] gagal membaca ${requested}:`, error);
+    await reportError(error, {
+      source: 'registry',
+      path: '/api/registry',
+      context: { resource: requested },
+    });
     return json({ error: 'Registry sedang tidak bisa dibaca.' }, 503);
   }
 };

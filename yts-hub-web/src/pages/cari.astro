@@ -20,6 +20,7 @@ import { search, suggestCorrection } from '@/server/content/search-queries';
 import { recordSearch } from '@/server/content/search-analytics';
 import { listFaqCategories } from '@/server/content/directory-queries';
 import { getPopularFaqs } from '@/server/content/public-queries';
+import { reportError } from '@/server/observability/errors';
 
 const query = (Astro.url.searchParams.get('q') ?? '').slice(0, 200);
 const hasQuery = query.trim().length > 0;
@@ -51,7 +52,7 @@ if (hasQuery) {
       ]);
     }
   } catch (error) {
-    console.error('[search] pencarian gagal:', error);
+    await reportError(error, { source: 'search', path: '/cari' });
     failed = true;
   }
 }

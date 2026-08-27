@@ -24,6 +24,7 @@ import {
   updateContent,
 } from '@/server/admin/governance';
 import { can, transitionsFrom, type ContentStatus } from '@/server/auth/roles';
+import { reportError } from '@/server/observability/errors';
 
 const actor = Astro.locals.actor;
 if (!actor) return Astro.redirect('/admin/masuk', 302);
@@ -84,7 +85,7 @@ if (Astro.request.method === 'POST') {
     if (caught instanceof GovernanceError) {
       error = caught.message;
     } else {
-      console.error('[admin] aksi gagal:', caught);
+      await reportError(caught, { source: 'admin-content', path: '/admin', context: { entity: spec.key, intent } });
       error = 'Sedang ada gangguan di sisi kami. Perubahan tidak disimpan.';
     }
   }

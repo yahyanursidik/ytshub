@@ -1,0 +1,64 @@
+---
+/**
+ * Pengirim catatan kunjungan & klik keluar — 09-A11Y §8.
+ *
+ * Dimuat di seluruh halaman publik lewat BaseLayout. Ukurannya di bawah 1 KB
+ * dan tidak memuat pustaka apa pun; 09-A11Y §5 meminta biaya hydration ditekan,
+ * dan menambahkan pustaka analytics pihak ketiga di sini akan membatalkan
+ * seluruh usaha itu sekaligus mengirim data pengunjung YTS ke luar.
+ *
+ * ## Yang TIDAK dikirim
+ *
+ * Tidak ada cookie, tidak ada id perangkat, tidak ada referrer, tidak ada
+ * ukuran layar. Yang dikirim hanya path halaman dan — saat tautan keluar
+ * ditekan — alamat tujuannya. Server pun hanya menyimpan host tujuannya.
+ *
+ * ## Halaman admin dikecualikan
+ *
+ * Admin bukan halaman publik dan jumlah kunjungannya tidak menjawab pertanyaan
+ * apa pun tentang pelayanan YTS. Ia juga hanya dibuka segelintir orang, yang
+ * berarti penghitung hariannya justru bisa mendekati pelacakan per orang.
+ */
+---
+
+<script>
+  (() => {
+    const path = location.pathname;
+    if (path.startsWith('/admin')) return;
+
+    const send = (payload: Record<string, unknown>) => {
+      try {
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        navigator.sendBeacon?.('/api/jejak', blob);
+      } catch {
+        // Analytics tidak boleh mengganggu apa pun yang sedang dilakukan pengunjung.
+      }
+    };
+
+    send({ kind: 'view', path });
+
+    document.addEventListener(
+      'click',
+      (event) => {
+        const link = (event.target as HTMLElement)?.closest?.('a');
+        if (!link) return;
+
+        const href = link.getAttribute('href');
+        if (!href || !/^https?:\/\//i.test(href)) return;
+
+        // Tautan ke domain sendiri bukan "klik keluar" — yang diukur §8 adalah
+        // pengunjung yang berhasil sampai ke sistem yang menanganinya.
+        try {
+          if (new URL(href).host === location.host) return;
+        } catch {
+          return;
+        }
+
+        send({ kind: 'outbound', path, target: href });
+      },
+      // Fase capture: tautan bertarget _blank membuka tab baru seketika, dan
+      // listener biasa bisa tidak sempat berjalan.
+      { capture: true },
+    );
+  })();
+</script>

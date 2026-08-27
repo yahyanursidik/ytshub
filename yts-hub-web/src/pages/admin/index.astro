@@ -12,6 +12,7 @@ import AdminLayout from '@/layouts/AdminLayout.astro';
 import WorkQueue from '@/components/admin/WorkQueue.astro';
 import { buildDashboard } from '@/server/admin/dashboard';
 import { listLinks } from '@/server/integrations/link-monitor';
+import { countOpenErrors } from '@/server/observability/errors';
 import { roleFor } from '@/server/auth/roles';
 
 // Middleware menjamin keberadaannya; pemeriksaan ini yang membuat typecheck
@@ -31,6 +32,16 @@ const dashboard = await buildDashboard(actor);
  * penuh terus-menerus dan berhenti berarti.
  */
 const isOrgWide = roleFor(actor, null) !== null;
+
+/**
+ * Kesalahan sistem hanya ditampilkan kepada peran tingkat organisasi.
+ *
+ * Bukan karena rahasia, melainkan karena tidak bisa ditindaklanjuti editor satu
+ * unit — dan angka merah yang tidak bisa ditindaklanjuti siapa pun yang
+ * melihatnya hanya menjadi kebisingan yang lama-lama diabaikan.
+ */
+const openErrors = isOrgWide ? await countOpenErrors() : 0;
+
 const brokenLinks = await listLinks({
   status: 'broken',
   unitIds: isOrgWide
@@ -63,6 +74,21 @@ const COUNT_LABELS: [keyof typeof dashboard.counts, string][] = [
       <p>Menampilkan konten dari {scope}.</p>
     </div>
   </div>
+
+  {
+    openErrors > 0 && (
+      <section class="admin-panel broken" aria-labelledby="kesalahan-sistem">
+        <h2 id="kesalahan-sistem">Kesalahan sistem</h2>
+        <p class="broken__desc">
+          {openErrors} kesalahan belum ditangani. Selama dibiarkan, sebagian pengunjung menemui
+          halaman yang tidak berfungsi tanpa ada yang tahu.
+        </p>
+        <p class="broken__more">
+          <a href="/admin/pemantauan">Lihat di Pemantauan</a>
+        </p>
+      </section>
+    )
+  }
 
   {
     brokenLinks.length > 0 && (

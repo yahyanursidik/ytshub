@@ -11,6 +11,8 @@ import '@/styles/base.css';
 import SiteHeader from '@/components/SiteHeader.astro';
 import SiteFooter from '@/components/SiteFooter.astro';
 import DevDataNotice from '@/components/ui/DevDataNotice.astro';
+import StructuredData from '@/components/ui/StructuredData.astro';
+import UsageBeacon from '@/components/ui/UsageBeacon.astro';
 
 interface Props {
   title: string;
@@ -18,12 +20,58 @@ interface Props {
   /** Path kanonik relatif, mis. "/layanan". Default: URL saat ini. */
   canonicalPath?: string;
   noindex?: boolean;
+  /**
+   * Structured data khusus halaman ini — 09-A11Y §6.
+   * Organization dan WebSite sudah dipasang otomatis di bawah; yang diteruskan
+   * lewat prop ini adalah entity halamannya sendiri (mis. Event).
+   */
+  schema?: Record<string, unknown> | Record<string, unknown>[];
 }
 
-const { title, description, canonicalPath, noindex = false } = Astro.props;
+const { title, description, canonicalPath, noindex = false, schema } = Astro.props;
 
 const canonical = new URL(canonicalPath ?? Astro.url.pathname, Astro.site ?? Astro.url.origin);
 const fullTitle = title === 'YTS Hub' ? 'YTS Hub' : `${title} — YTS Hub`;
+
+const origin = (Astro.site ?? new URL(Astro.url.origin)).origin;
+
+/**
+ * Organization + WebSite, dipasang di setiap halaman — 09-A11Y §6.
+ *
+ * `SearchAction` menunjuk /cari yang memang menerima `?q=`. Menyatakan
+ * kemampuan pencarian yang tidak ada adalah kesalahan yang sering terjadi pada
+ * markup ini; di sini ia benar karena halamannya benar-benar bekerja begitu.
+ *
+ * Halaman `noindex` tidak ikut memuatnya: menyatakan identitas organisasi pada
+ * halaman yang sengaja tidak diindeks tidak ada gunanya.
+ */
+const siteSchema = noindex
+  ? null
+  : [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'Yayasan Tarbiyah Sunnah',
+        alternateName: 'YTS',
+        url: origin,
+        logo: new URL('/favicon.svg', origin).href,
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'YTS Hub',
+        url: origin,
+        inLanguage: 'id-ID',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: new URL('/cari?q={search_term_string}', origin).href,
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ];
 ---
 
 <!doctype html>
@@ -46,6 +94,9 @@ const fullTitle = title === 'YTS Hub' ? 'YTS Hub' : `${title} — YTS Hub`;
 
     <meta name="theme-color" content="#F7F5EF" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    {siteSchema && <StructuredData schema={siteSchema} />}
+    {schema && <StructuredData schema={schema} />}
   </head>
   <body>
     <a class="skip-link" href="#konten">Lompat ke konten utama</a>
@@ -55,5 +106,6 @@ const fullTitle = title === 'YTS Hub' ? 'YTS Hub' : `${title} — YTS Hub`;
       <slot />
     </main>
     <SiteFooter />
+    <UsageBeacon />
   </body>
 </html>

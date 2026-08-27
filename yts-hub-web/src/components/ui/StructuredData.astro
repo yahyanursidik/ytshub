@@ -1,0 +1,59 @@
+---
+/**
+ * Structured data schema.org — 09-ACCESSIBILITY-PERFORMANCE-SEO.md §6.
+ *
+ * ## Aturan yang dipegang
+ *
+ * Structured data hanya boleh menyatakan apa yang benar-benar tampil di
+ * halamannya. Menandai sesuatu yang tidak ada di halaman adalah pelanggaran
+ * pedoman mesin pencari, dan bagi YTS bukan hanya soal peringkat: menyatakan
+ * jadwal atau harga yang belum ditetapkan unit adalah bentuk lain dari
+ * mengarang data (05-HALLMARK §7).
+ *
+ * Karena itu tiap field di sini datang dari kolom yang memang dirender, dan
+ * field yang kosong DIBUANG, bukan diisi string kosong — penanda kosong
+ * menyatakan "tidak ada", padahal yang benar adalah "belum diisi".
+ *
+ * ## Yang belum dipakai
+ *
+ * `FAQPage` sengaja belum dipasang. §6 sendiri memberi syarat "gunakan hanya
+ * bila sesuai guideline search engine saat implementasi", dan Google kini
+ * membatasi rich result FAQ pada situs pemerintah dan kesehatan. Memasangnya
+ * tidak merugikan tetapi juga tidak menghasilkan apa pun, jadi ia menunggu
+ * sampai ada alasan yang bisa diperiksa ulang.
+ */
+interface Props {
+  /** Data terstruktur yang sudah disusun pemanggil. */
+  schema: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const { schema } = Astro.props;
+
+/** Membuang field yang null/undefined/kosong secara rekursif. */
+function compact(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    const items = value.map(compact).filter((item) => item !== undefined);
+    return items.length > 0 ? items : undefined;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => [key, compact(item)] as const)
+      .filter(([, item]) => item !== undefined);
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  }
+  if (value === null || value === undefined || value === '') return undefined;
+  return value;
+}
+
+const cleaned = compact(schema);
+---
+
+{
+  cleaned && (
+    <script
+      type="application/ld+json"
+      is:inline
+      set:html={JSON.stringify(cleaned)}
+    />
+  )
+}
