@@ -36,6 +36,28 @@ import { accounts, sessions, users, verifications } from '@/server/db/schema';
 function build() {
   const env = getServerEnv();
 
+  /**
+   * Di SINILAH kunci sesi dituntut, bukan di validasi environment.
+   *
+   * Situs publik — 32 halaman statis — tidak membutuhkannya sama sekali.
+   * Menuntutnya di `getServerEnv()` membuat build seluruh situs gagal padahal
+   * yang belum disiapkan hanya bagian adminnya, dan itu pernah terjadi:
+   * `getStaticPaths` halaman event memanggil `getDb()`, `getDb()` memanggil
+   * `getServerEnv()`, dan deploy berhenti di sana.
+   *
+   * Dengan pemeriksaan di sini, kegagalannya berurutan benar: situs publik
+   * tetap terbit, /admin yang menolak jalan sampai kuncinya diisi.
+   */
+  if (!env.authSecret) {
+    throw new Error(
+      'BETTER_AUTH_SECRET belum diisi, jadi admin tidak bisa dijalankan. Kunci ini ' +
+        'menandatangani cookie sesi; tanpa itu sesi bisa dipalsukan.\n' +
+        'Hasilkan sekali, lalu simpan sebagai environment variable:\n' +
+        '  node -e "console.log(crypto.randomBytes(32).toString(\'base64\'))"\n' +
+        'Situs publik tidak terpengaruh dan tetap berjalan tanpa kunci ini.',
+    );
+  }
+
   return betterAuth({
     secret: env.authSecret,
     baseURL: env.authBaseUrl,

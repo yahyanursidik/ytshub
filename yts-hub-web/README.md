@@ -478,22 +478,34 @@ relatif terhadap posisi berkasnya, jadi saat berkas itu berada di dalam
 
 Yang perlu diisi manual di **Site settings → Environment variables**:
 
-| Variabel              | Nilai                                                  |
-| --------------------- | ------------------------------------------------------ |
-| `DATABASE_URL`        | Connection string Neon                                 |
-| `BETTER_AUTH_SECRET`  | 32+ karakter acak — menandatangani cookie sesi admin    |
-| `PUBLIC_SITE_URL`     | Origin sungguhan situs, mis. `https://hub.yts.or.id`   |
+| Variabel             | Wajib?                | Nilai                                                |
+| -------------------- | --------------------- | ---------------------------------------------------- |
+| `DATABASE_URL`       | **ya**                | Connection string Neon                               |
+| `PUBLIC_SITE_URL`    | ya untuk production   | Origin sungguhan, mis. `https://hub.yts.or.id`       |
+| `BETTER_AUTH_SECRET` | ya untuk `/admin`     | 32+ karakter acak — menandatangani cookie sesi admin |
 
-`DATABASE_URL` dibaca saat build **dan** saat request, karena `/cari`, `/api/*`, dan
-seluruh `/admin` berjalan sebagai function. `BETTER_AUTH_SECRET` dihasilkan sekali:
+**Hanya `DATABASE_URL` yang menghentikan build.** Situs publik terdiri dari 32 halaman
+statis dan tidak membutuhkan dua variabel lainnya untuk terbit. Itu disengaja: pernah
+terjadi seluruh deploy gagal padahal yang belum disiapkan hanya bagian adminnya, dan
+halaman untuk jamaah tertahan tanpa alasan. Sekarang build hanya **memperingatkan**, dan
+peringatannya muncul di log build.
+
+Konsekuensi bila `BETTER_AUTH_SECRET` kosong: situs publik berjalan normal, `/admin`
+menjawab 503 dengan penjelasan dan cara memperbaikinya — bukan halaman error.
+
+Hasilkan kuncinya sekali:
 
 ```bash
 node -e "console.log(crypto.randomBytes(32).toString('base64'))"
 ```
 
 Menggantinya membuat seluruh sesi admin yang sedang berjalan tidak berlaku.
-`PUBLIC_SITE_URL` wajib domain sungguhan di production — cookie sesi terikat
-padanya, dan nilai localhost membuat admin tidak bisa dipakai sama sekali.
+
+**`PUBLIC_SITE_URL` menentukan canonical URL, Open Graph, dan structured data setiap
+halaman.** Bila kosong, `astro.config.mjs` memakai `DEPLOY_PRIME_URL` lalu `URL` yang
+disediakan Netlify sendiri — lebih baik alamat Netlify yang benar daripada placeholder
+yang pasti salah. Isi dengan domain resmi sebelum situs diindeks mesin pencari; alamat
+yang salah baru terasa setelah terindeks, dan saat itu sudah terlambat.
 
 Jangan pernah menulis connection string atau secret ke `netlify.toml` — file itu
 ikut ter-commit.

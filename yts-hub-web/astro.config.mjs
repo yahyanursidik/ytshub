@@ -24,8 +24,65 @@ import netlify from '@astrojs/netlify';
  * Route yang berjalan saat request menandai dirinya dengan `export const
  * prerender = false`; seluruhnya ada di src/pages/cari.astro dan src/pages/api/.
  */
+/**
+ * Origin publik situs.
+ *
+ * Dibaca dari environment, BUKAN ditulis tetap di berkas ini. Nilai ini menjadi
+ * dasar canonical URL, Open Graph, dan structured data setiap halaman; nilai
+ * yang salah membuat seluruh situs mengaku beralamat di tempat lain, dan
+ * kesalahan itu tidak terlihat sampai mesin pencari sudah mengindeksnya.
+ *
+ * Netlify menyediakan `URL` (alamat produksi) dan `DEPLOY_PRIME_URL` (alamat
+ * deploy preview) secara otomatis, jadi keduanya dipakai sebagai cadangan bila
+ * PUBLIC_SITE_URL belum diisi — lebih baik alamat Netlify yang benar daripada
+ * placeholder yang pasti salah.
+ */
+const SITE_FALLBACK = 'https://hub.example.org';
+const site =
+  process.env.PUBLIC_SITE_URL ??
+  process.env.DEPLOY_PRIME_URL ??
+  process.env.URL ??
+  SITE_FALLBACK;
+
+/**
+ * Peringatan konfigurasi saat build.
+ *
+ * Bukan error: keduanya tidak menghalangi situs publik terbit, dan menghentikan
+ * deploy karena bagian admin belum disiapkan pernah membuat seluruh rilis gagal
+ * padahal halaman untuk jamaah sudah siap. Yang perlu adalah peringatan yang
+ * tidak bisa dilewatkan begitu saja saat membaca log build.
+ */
+function konfigurasiWarning() {
+  return {
+    name: 'yts-config-warning',
+    hooks: {
+      'astro:build:start': () => {
+        const pesan = [];
+
+        if (site === SITE_FALLBACK) {
+          pesan.push(
+            'PUBLIC_SITE_URL belum diisi dan Netlify tidak menyediakan URL.\n' +
+              `   Canonical URL dan Open Graph memakai contoh: ${SITE_FALLBACK}\n` +
+              '   Isi PUBLIC_SITE_URL dengan domain resmi sebelum situs diindeks.',
+          );
+        }
+
+        if (!process.env.BETTER_AUTH_SECRET) {
+          pesan.push(
+            'BETTER_AUTH_SECRET belum diisi.\n' +
+              '   Situs publik tetap terbit; /admin akan menolak jalan sampai kunci ini ada.\n' +
+              '   Hasilkan: node -e "console.log(crypto.randomBytes(32).toString(\'base64\'))"',
+          );
+        }
+
+        for (const item of pesan) console.warn(`\n⚠  ${item}\n`);
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  site: 'https://hub.example.org', // ganti saat domain resmi YTS ditetapkan
+  site,
   adapter: netlify({
     /**
      * Mematikan emulasi Netlify saat `astro dev`.
@@ -44,7 +101,7 @@ export default defineConfig({
      */
     devFeatures: false,
   }),
-  integrations: [react()],
+  integrations: [react(), konfigurasiWarning()],
   prefetch: {
     prefetchAll: false,
     defaultStrategy: 'hover',

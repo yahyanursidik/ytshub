@@ -30,7 +30,9 @@ export default [
   {
     // Script CLI (tools/ dan scripts/): berjalan di Node, sebagian mengeksekusi kode
     // di dalam browser, dan memang berkomunikasi lewat stdout.
-    files: ['tools/**/*.mjs', 'scripts/**/*.ts'],
+    // astro.config.mjs ikut di sini sejak ia membaca environment dan
+    // memperingatkan konfigurasi yang belum lengkap saat build.
+    files: ['tools/**/*.mjs', 'scripts/**/*.ts', 'astro.config.mjs'],
     languageOptions: {
       globals: {
         console: 'readonly',

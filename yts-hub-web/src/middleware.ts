@@ -30,7 +30,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (PUBLIC_ADMIN_PATHS.includes(path)) return next();
 
-  const actor = await getActor(context.request);
+  /**
+   * Admin bisa saja belum dikonfigurasi — situs publik sengaja tetap bisa
+   * terbit tanpa BETTER_AUTH_SECRET. Bila kuncinya memang belum ada, yang
+   * ditampilkan adalah penjelasan, bukan halaman error 500 dengan jejak
+   * tumpukan yang tidak memberi tahu apa yang harus dilakukan.
+   */
+  let actor;
+  try {
+    actor = await getActor(context.request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes('BETTER_AUTH_SECRET')) throw error;
+
+    return new Response(
+      'Admin belum dikonfigurasi.\n\n' +
+        'BETTER_AUTH_SECRET belum diisi di environment, jadi sesi admin tidak bisa\n' +
+        'dibuat. Situs publik tidak terpengaruh dan tetap berjalan normal.\n\n' +
+        'Hasilkan kuncinya sekali, lalu simpan sebagai environment variable:\n' +
+        '  node -e "console.log(crypto.randomBytes(32).toString(\'base64\'))"\n',
+      { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } },
+    );
+  }
 
   if (!actor) {
     // Membawa tujuan semula agar setelah masuk pengguna kembali ke halaman yang
