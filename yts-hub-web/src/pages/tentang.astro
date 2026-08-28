@@ -1,17 +1,274 @@
 ---
+/**
+ * Tentang YTS Hub.
+ *
+ * ## Kenapa halaman ini ada, dan kenapa isinya bukan profil yayasan
+ *
+ * 03-LANDING-PAGE-UIUX.md §1 menegaskan tugas beranda bukan menjelaskan seluruh
+ * yayasan, melainkan membantu orang menemukan sesuatu secepat mungkin. Aturan
+ * itu benar — dan justru karena itu penjelasan tentang siapa YTS dan apa peran
+ * Hub ini butuh tempatnya sendiri. Di sinilah tempatnya.
+ *
+ * Halaman ini menjawab tiga pertanyaan yang tidak dijawab halaman mana pun:
+ * mengapa Hub ini dibuat, apa yang dikerjakannya, dan apa yang TIDAK
+ * dikerjakannya. Yang ketiga sama pentingnya: pengunjung yang mengira Hub ini
+ * memproses pendaftaran akan menunggu sesuatu yang tidak akan pernah datang.
+ *
+ * Sebelumnya halaman ini `noindex` dan berisi placeholder, padahal ditautkan
+ * dari footer setiap halaman. Sejak diisi, ia diindeks seperti halaman publik
+ * lain — inilah halaman yang seharusnya muncul saat orang mencari "apa itu
+ * YTS Hub".
+ */
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PhasePlaceholder from '@/components/ui/PhasePlaceholder.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import Icon from '@/components/ui/Icon.astro';
+
+/**
+ * Tiga pekerjaan Hub, diambil dari 01-PRODUCT-BRIEF dan cara pengurus
+ * merumuskannya sendiri: menghubungkan situs-situs YTS, mengatalogkan apa yang
+ * ada, dan mengumpulkan jawaban.
+ */
+const jobs = [
+  {
+    icon: 'external' as const,
+    title: 'Menghubungkan sistem yang sudah berjalan',
+    body: 'Setiap unit YTS punya situs dan sistemnya sendiri. Hub tidak menggantikannya — ia menunjukkan sistem mana menangani apa, lalu mengantar Anda ke sana dengan konteks yang jelas.',
+    href: '/aplikasi',
+    linkLabel: 'Lihat daftar sistem',
+  },
+  {
+    icon: 'school' as const,
+    title: 'Mengatalogkan unit, program, dan kegiatan',
+    body: 'Unit beserta bidangnya, program yang sedang berjalan, layanan yang bisa diakses, dan agenda terbuka — dikumpulkan dalam satu tempat dengan penamaan yang konsisten.',
+    href: '/unit',
+    linkLabel: 'Telusuri unit',
+  },
+  {
+    icon: 'help' as const,
+    title: 'Mengumpulkan jawaban yang sering dicari',
+    body: 'Pertanyaan yang berulang dijawab sekali, disimpan rapi, dan ditinjau berkala — supaya jamaah tidak perlu menunggu balasan untuk hal yang jawabannya sudah pasti.',
+    href: '/faq',
+    linkLabel: 'Buka FAQ',
+  },
+];
 ---
 
 <BaseLayout
   title="Tentang YTS Hub"
-  description="Penjelasan peran YTS Hub sebagai pusat informasi resmi YTS."
+  description="YTS Hub adalah pusat informasi resmi Yayasan Tarbiyah Sunnah: menghubungkan sistem yang sudah berjalan, mengatalogkan unit dan program, serta mengumpulkan jawaban yang sering dicari."
   canonicalPath="/tentang"
-  noindex
 >
-  <PhasePlaceholder
-    title="Tentang YTS Hub"
-    phase="Fase 3 — Public Directory Routes"
-    describes="Penjelasan peran YTS Hub sebagai pusat informasi resmi YTS."
+  <PageHeader
+    eyebrow="Tentang"
+    title="Teman perjalanan jamaah"
+    crumbs={[{ label: 'Beranda', href: '/' }, { label: 'Tentang YTS Hub' }]}
   />
+
+  <div class="container about">
+    {/*
+      Pernyataan posisi dari pengurus, ditampilkan sebagai kutipan dan bukan
+      dilebur menjadi paragraf biasa: ini rumusan mereka sendiri tentang peran
+      yayasan, dan bentuknya menandai bahwa kalimatnya memang begitu adanya.
+    */}
+    <blockquote class="creed">
+      <p>
+        Tarbiyah Sunnah bukan sekadar penyelenggara kajian, tetapi teman perjalanan jamaah dalam
+        belajar, bertumbuh, dan menjaga keberlangsungan dakwah.
+      </p>
+    </blockquote>
+
+    <div class="about__body">
+      <p>
+        YTS Hub lahir dari kebutuhan yang sederhana. Kegiatan Yayasan Tarbiyah Sunnah tumbuh di
+        banyak tempat — sekolah, ma&rsquo;had, kajian, program belajar daring, penyaluran donasi —
+        dan masing-masing membangun situs serta sistemnya sendiri. Bagi jamaah, itu berarti harus
+        mengingat alamat mana untuk keperluan apa.
+      </p>
+      <p>
+        Hub ini menyatukan pintu masuknya. Satu tempat untuk melihat apa yang ada, siapa yang
+        menangani, dan ke mana harus melangkah.
+      </p>
+    </div>
+
+    <section class="jobs" aria-labelledby="pekerjaan">
+      <h2 id="pekerjaan">Tiga hal yang dikerjakan Hub</h2>
+      <ul>
+        {
+          jobs.map((job) => (
+            <li>
+              <span class="jobs__icon" aria-hidden="true">
+                <Icon name={job.icon} size={20} />
+              </span>
+              <h3>{job.title}</h3>
+              <p>{job.body}</p>
+              <a class="link-action" href={job.href}>
+                {job.linkLabel}
+                <Icon name="arrow-right" size={15} />
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    {/*
+      Bagian yang paling mudah dihilangkan saat menulis halaman "tentang", dan
+      justru paling menolong: batas yang jelas. Pengunjung yang mengira Hub
+      memproses pendaftaran akan menunggu sesuatu yang tidak akan pernah datang.
+    */}
+    <section class="limits" aria-labelledby="batas">
+      <h2 id="batas">Yang tidak dikerjakan Hub</h2>
+      <ul>
+        <li>
+          <strong>Tidak memproses pendaftaran, pembayaran, atau transaksi.</strong> Semuanya
+          diselesaikan di sistem milik unit penyelenggara; Hub hanya mengantar Anda ke sana.
+        </li>
+        <li>
+          <strong>Tidak menggantikan situs unit.</strong> Informasi paling rinci dan paling baru
+          tetap ada di situs masing-masing unit.
+        </li>
+        <li>
+          <strong>Tidak menetapkan persyaratan, biaya, atau jadwal.</strong> Semua itu ditetapkan
+          unit penyelenggara. Yang ditampilkan di sini mengikuti ketetapan mereka — dan bila belum
+          ada ketetapannya, halaman menyatakan apa adanya bahwa informasinya belum tersedia.
+        </li>
+      </ul>
+    </section>
+
+    <section class="who" aria-labelledby="pengelola">
+      <h2 id="pengelola">Siapa yang mengelola</h2>
+      <p>
+        Setiap informasi di Hub punya unit pemilik yang bertanggung jawab atas isinya, dan ditinjau
+        ulang secara berkala. Bila menemukan yang keliru atau sudah tidak berlaku,{' '}
+        <a href="/hubungi-kami">sampaikan kepada kami</a> — koreksi dari jamaah adalah cara tercepat
+        informasi ini tetap benar.
+      </p>
+    </section>
+  </div>
 </BaseLayout>
+
+<style>
+  .about {
+    padding-block: var(--space-10) var(--space-16);
+  }
+
+  /* ---- pernyataan posisi ---- */
+
+  .creed {
+    max-width: 44ch;
+    padding-inline-start: var(--space-6);
+    border-inline-start: 3px solid var(--color-brand);
+  }
+
+  .creed p {
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    font-weight: 500;
+    line-height: 1.35;
+    letter-spacing: var(--tracking-heading);
+    text-wrap: balance;
+  }
+
+  .about__body {
+    max-width: 66ch;
+    margin-top: var(--space-10);
+  }
+
+  .about__body p + p {
+    margin-top: var(--space-4);
+  }
+
+  /* ---- tiga pekerjaan ---- */
+
+  .jobs {
+    margin-top: var(--space-12);
+  }
+
+  .jobs h2,
+  .limits h2,
+  .who h2 {
+    font-size: var(--text-h3);
+  }
+
+  .jobs ul {
+    display: grid;
+    gap: var(--space-8);
+    margin-top: var(--space-8);
+  }
+
+  .jobs__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-control);
+    color: var(--color-brand);
+  }
+
+  .jobs h3 {
+    margin-top: var(--space-3);
+    font-size: var(--text-h4);
+  }
+
+  .jobs p {
+    max-width: 54ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .jobs .link-action {
+    margin-top: var(--space-3);
+  }
+
+  /* ---- batas ---- */
+
+  /*
+   * Daftar bergaris, bukan kartu. Bagian ini dibaca berurutan sebagai tiga
+   * pernyataan yang saling melengkapi — bukan tiga pilihan yang dibandingkan
+   * (05-HALLMARK-ANTI-SLOP.md §6).
+   */
+  /* Lebar panel mengikuti lebar bacanya. Panel selebar layar dengan teks yang
+     berhenti di 68ch meninggalkan separuh kanan kosong, dan kekosongan itu
+     terbaca sebagai kekeliruan tata letak, bukan sebagai ruang napas. */
+  .limits {
+    max-width: 80ch;
+    margin-top: var(--space-12);
+    padding: var(--space-8);
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-panel);
+  }
+
+  .limits ul {
+    max-width: 68ch;
+    margin-top: var(--space-6);
+  }
+
+  .limits li + li {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .limits strong {
+    font-weight: 600;
+  }
+
+  .who {
+    margin-top: var(--space-12);
+  }
+
+  .who p {
+    max-width: 66ch;
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  @media (min-width: 860px) {
+    .jobs ul {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-6);
+    }
+  }
+</style>

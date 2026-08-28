@@ -51,6 +51,7 @@ const shots = [
   { name: 'info-spmb-desktop', width: 1440, height: 900, path: '/info/spmb' },
   { name: 'info-spmb-mobile', width: 390, height: 844, mobile: true, path: '/info/spmb' },
   { name: 'belajar-desktop', width: 1440, height: 900, path: '/belajar' },
+  { name: 'tentang-desktop', width: 1440, height: 900, path: '/tentang' },
   { name: 'desktop-fold', width: 1440, height: 900, full: false },
   { name: 'tablet-full', width: 834, height: 1000 },
   { name: 'mobile-full', width: 390, height: 844, mobile: true },

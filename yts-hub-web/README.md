@@ -176,6 +176,30 @@ scripts/backup.ts       # CLI cadangan konten & verifikasinya
 tools/                  # screenshot, audit a11y, budget performa
 ```
 
+## Navigasi & pesan
+
+**Navigasi menyimpang dari 02-IA §2 pada dua hal, keduanya disengaja dan tercatat
+di `src/config/navigation.ts`.** "Beranda" dilepas — logo di kiri sudah menjadi tautan
+beranda dengan nama tersembunyi untuk pembaca layar, dan mengulang tautan yang ada tepat
+di sebelahnya membuang satu slot. Slot itu dipakai "Aplikasi", yang dokumen sama
+cantumkan sebagai cabang tingkat atas di sitemap §5 tetapi tidak di navigasi §2 —
+ketidakcocokan di dalam dokumennya sendiri. Menghubungkan sistem YTS yang tersebar adalah
+alasan utama Hub ini ada; menyembunyikannya di balik beranda saja bertentangan dengan itu.
+
+Jumlahnya tetap tujuh. Menambah tanpa mengurangi membuat bilah header berdesakan dengan
+tombol "Dukung YTS" di layar 1280px.
+
+**Pernyataan posisi yayasan ada di `/tentang` dan footer, TIDAK di hero.**
+03-LANDING §1 menegaskan tugas beranda bukan menjelaskan yayasan melainkan membantu orang
+menemukan sesuatu secepat mungkin — dan aturan itu benar. Karena itu kalimat "teman
+perjalanan jamaah" ditempatkan di footer (muncul di setiap halaman, tanpa mengambil alih
+hero) dan menjadi pembuka `/tentang`.
+
+**`/tentang` menjawab tiga pertanyaan yang tidak dijawab halaman lain:** mengapa Hub ini
+dibuat, apa yang dikerjakannya, dan apa yang **tidak** dikerjakannya. Yang ketiga paling
+mudah dihilangkan saat menulis halaman "tentang" dan justru paling menolong — pengunjung
+yang mengira Hub memproses pendaftaran akan menunggu sesuatu yang tidak akan pernah datang.
+
 ## Ekosistem pembelajaran
 
 Dua sistem — LMS kajian Abu Haidar As Sundawy dan portal Belajar Islam Dasar TSL —

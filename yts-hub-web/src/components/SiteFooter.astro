@@ -12,6 +12,7 @@ const groups = [
       { label: 'Program', href: '/program' },
       { label: 'Layanan', href: '/layanan' },
       { label: 'Event', href: '/event' },
+      { label: 'Belajar', href: '/belajar' },
     ],
   },
   {
@@ -41,9 +42,19 @@ const year = new Date().getFullYear();
         <Logo variant="full" size={40} />
         <span class="visually-hidden">Yayasan Tarbiyah Sunnah — beranda</span>
       </a>
+      {/*
+        Pernyataan posisi dari pengurus, dibiarkan utuh sebagai kalimatnya
+        sendiri. Footer dipilih karena ia muncul di setiap halaman tanpa
+        mengambil alih tugas beranda — 03-LANDING §1 menegaskan tugas beranda
+        adalah membantu orang menemukan sesuatu, bukan menjelaskan yayasan.
+      */}
+      <p class="footer__creed">
+        Tarbiyah Sunnah bukan sekadar penyelenggara kajian, tetapi teman perjalanan jamaah dalam
+        belajar, bertumbuh, dan menjaga keberlangsungan dakwah.
+      </p>
       <p>
-        Pusat informasi dan layanan resmi Yayasan Tarbiyah Sunnah. Satu tempat untuk menemukan
-        program, layanan, unit, dan aplikasi YTS.
+        YTS Hub mengumpulkan program, layanan, unit, dan sistem YTS di satu tempat —{' '}
+        <a href="/tentang">selengkapnya tentang Hub ini</a>.
       </p>
     </div>
 
@@ -90,6 +101,16 @@ const year = new Date().getFullYear();
   .footer__logo {
     display: inline-block;
     text-decoration: none;
+  }
+
+  /* Pernyataan posisi dibedakan dari paragraf biasa: sedikit lebih besar dan
+     memakai font display, supaya terbaca sebagai kalimat yayasan — bukan
+     keterangan kaki halaman. */
+  .footer__creed {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    line-height: 1.45;
+    color: var(--color-text);
   }
 
   .footer__brand p {

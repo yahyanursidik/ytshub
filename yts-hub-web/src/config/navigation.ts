@@ -83,13 +83,36 @@ export const popularQueries: string[] = [
   'rekaman kajian',
 ];
 
-/** Navigasi utama — dipakai header dan menu mobile. */
+/**
+ * Navigasi utama — dipakai header dan menu mobile.
+ *
+ * ## Dua penyimpangan dari 02-INFORMATION-ARCHITECTURE.md §2, keduanya disengaja
+ *
+ * 1. **"Beranda" dilepas.** Logo di kiri sudah menjadi tautan beranda dengan
+ *    nama tersembunyi untuk pembaca layar, dan itu konvensi yang dikenali hampir
+ *    semua pengunjung. Satu slot yang hemat lebih berharga daripada mengulang
+ *    tautan yang sudah ada tepat di sebelahnya.
+ *
+ * 2. **"Aplikasi & Website" ditambahkan.** Dokumen yang sama mencantumkannya
+ *    sebagai cabang tingkat atas di sitemap §5, tetapi tidak memasukkannya ke
+ *    navigasi §2 — dan itu ketidakcocokan di dalam dokumennya sendiri.
+ *    Menghubungkan sistem-sistem YTS yang tersebar adalah alasan utama Hub ini
+ *    ada; membiarkannya hanya bisa ditemukan lewat beranda berarti menyembunyikan
+ *    hal yang paling membedakannya.
+ *
+ * Jumlahnya tetap tujuh. Menambah tanpa mengurangi akan membuat bilah header
+ * berdesakan dengan tombol "Dukung YTS" di layar 1280px.
+ *
+ * "Belajar" sengaja TIDAK masuk: ia sudah menjadi salah satu enam pintasan tugas
+ * tepat di bawah hero, dan mengulangnya di navigasi hanya menambah panjang
+ * tanpa menambah jalan masuk.
+ */
 export const primaryNav = [
-  { label: 'Beranda', href: '/' },
   { label: 'Unit', href: '/unit' },
   { label: 'Program', href: '/program' },
   { label: 'Layanan', href: '/layanan' },
   { label: 'Event', href: '/event' },
+  { label: 'Aplikasi', href: '/aplikasi' },
   { label: 'FAQ', href: '/faq' },
   { label: 'Hubungi Kami', href: '/hubungi-kami' },
 ];
