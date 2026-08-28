@@ -38,7 +38,10 @@ export const taskShortcuts: TaskShortcut[] = [
     id: 'belajar-islam',
     label: 'Belajar Islam',
     description: 'Kelas dan materi belajar daring.',
-    href: '/program?kategori=belajar-islam',
+    // Diarahkan ke /belajar, bukan filter program: pintasan ini dibaca sebagai
+    // 'saya mau belajar', dan tujuan itu mencakup sistem pembelajarannya —
+    // bukan hanya daftar program yang bisa diikuti.
+    href: '/belajar',
     icon: 'learn',
   },
   {

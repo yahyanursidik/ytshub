@@ -1,0 +1,114 @@
+---
+/**
+ * Ekosistem pembelajaran online — section beranda.
+ *
+ * Berbeda dari "Aplikasi & Website" yang ada di bawahnya: bagian itu adalah
+ * DIREKTORI — daftar lengkap sistem YTS supaya orang menemukan yang dicarinya.
+ * Bagian ini adalah TAWARAN — dua tempat belajar yang berdiri sendiri sebagai
+ * satu layanan, meski di registry mereka hanya dua baris di antara sembilan.
+ *
+ * Karena itu bentuknya juga berbeda: dua blok bersanding dengan keterangan untuk
+ * siapa masing-masing dibuat, bukan baris ringkas dengan tombol. 05-HALLMARK §6
+ * menolak grid kartu identik untuk seluruh section, dan di sini perbedaannya
+ * memang menandai perbedaan makna.
+ *
+ * Tidak dirender bila belum ada sistem berkategori pembelajaran.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import type { LearningSystem } from '@/server/content/public-queries';
+
+interface Props {
+  systems: LearningSystem[];
+}
+
+const { systems } = Astro.props;
+---
+
+{
+  systems.length > 0 && (
+    <section class="section learn" aria-labelledby="learn-title">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-head__intro">
+            <span class="eyebrow">Pembelajaran</span>
+            <h2 id="learn-title">Belajar di ekosistem pembelajaran online kami</h2>
+            <p>
+              Ruang belajar daring YTS untuk jamaah kajian dan peserta program — mengulang materi,
+              menyimak kajian yang terlewat, dan melanjutkan kelas.
+            </p>
+          </div>
+          <a class="link-action" href="/belajar">
+            Selengkapnya
+            <Icon name="arrow-right" size={16} />
+          </a>
+        </div>
+
+        <ul class="learn__list">
+          {systems.slice(0, 2).map((system) => (
+            <li>
+              <p class="learn__owner">{system.unitName}</p>
+              <h3>{system.name}</h3>
+              <p class="learn__summary">{system.summary}</p>
+              <a class="learn__more" href="/belajar">
+                Cara masuk
+                <Icon name="arrow-right" size={15} />
+                <span class="visually-hidden">— {system.name}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .learn__list {
+    display: grid;
+    gap: var(--space-6);
+    margin-top: var(--space-8);
+  }
+
+  .learn__list > li {
+    padding-inline-start: var(--space-5);
+    /* Garis tegak, bukan kotak berbingkai: menandai kelompok tanpa menambah
+       satu lagi kartu ke halaman yang sudah penuh kartu. */
+    border-inline-start: 2px solid var(--color-brand);
+  }
+
+  .learn__owner {
+    color: var(--color-text-muted);
+    font-size: var(--text-meta);
+    letter-spacing: var(--tracking-meta);
+    text-transform: uppercase;
+  }
+
+  .learn__list h3 {
+    margin-top: var(--space-1);
+    font-size: var(--text-h4);
+  }
+
+  .learn__summary {
+    max-width: 56ch;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .learn__more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    /* 09-A11Y §2 — target sentuh utama. */
+    min-height: 44px;
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
+    font-weight: 550;
+  }
+
+  @media (min-width: 720px) {
+    .learn__list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-8);
+    }
+  }
+</style>

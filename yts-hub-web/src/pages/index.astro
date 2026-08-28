@@ -15,6 +15,7 @@ import QuickAccess from '@/components/landing/QuickAccess.astro';
 import PopularServices from '@/components/landing/PopularServices.astro';
 import ExploreYts from '@/components/landing/ExploreYts.astro';
 import ActivePrograms from '@/components/landing/ActivePrograms.astro';
+import LearningEcosystem from '@/components/landing/LearningEcosystem.astro';
 import FaqSection from '@/components/landing/FaqSection.astro';
 import AppsAndSites from '@/components/landing/AppsAndSites.astro';
 import HelpCta from '@/components/landing/HelpCta.astro';
@@ -22,6 +23,7 @@ import HelpCta from '@/components/landing/HelpCta.astro';
 import {
   getFeaturedPrograms,
   getFeaturedUnits,
+  getLearningSystems,
   getPopularFaqs,
   getPopularServices,
   getPublicApplications,
@@ -30,15 +32,17 @@ import { getTopQueries } from '@/server/content/search-analytics';
 import { getHighlightedAnnouncement } from '@/server/content/announcement-queries';
 import { popularQueries as fallbackQueries } from '@/config/navigation';
 
-const [services, units, programs, faqs, applications, topQueries, announcement] = await Promise.all([
-  getPopularServices(5),
-  getFeaturedUnits(4),
-  getFeaturedPrograms(3),
-  getPopularFaqs(4),
-  getPublicApplications(3),
-  getTopQueries(4),
-  getHighlightedAnnouncement(),
-]);
+const [services, units, programs, faqs, applications, topQueries, announcement, learningSystems] =
+  await Promise.all([
+    getPopularServices(5),
+    getFeaturedUnits(4),
+    getFeaturedPrograms(3),
+    getPopularFaqs(4),
+    getPublicApplications(3),
+    getTopQueries(4),
+    getHighlightedAnnouncement(),
+    getLearningSystems(),
+  ]);
 
 /**
  * "Sering dicari" diambil dari pencarian yang benar-benar terjadi (07-SEARCH §11),
@@ -64,6 +68,7 @@ const popularQueries = topQueries.length > 0 ? topQueries : fallbackQueries;
   <PopularServices services={services} />
   <ExploreYts units={units} />
   <ActivePrograms programs={programs} />
+  <LearningEcosystem systems={learningSystems} />
   <FaqSection faqs={faqs} />
   <AppsAndSites applications={applications} />
   <HelpCta />

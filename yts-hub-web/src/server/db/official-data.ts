@@ -28,6 +28,21 @@
 /** Prefix kode data resmi. `db:seed:clear` sengaja tidak menyentuh baris ini. */
 export const OFFICIAL_CODE_PREFIX = 'YTS-';
 
+/**
+ * Kategori registry untuk sistem tempat orang BELAJAR.
+ *
+ * Dijadikan konstanta, bukan string yang diketik ulang di beberapa tempat:
+ * halaman /belajar, section beranda, dan seed semuanya bergantung pada nilai
+ * yang sama persis. Satu salah ketik akan membuat halaman itu kosong tanpa
+ * error apa pun — kegagalan yang paling sulit disadari.
+ *
+ * Yang masuk kategori ini hanya sistem tempat jamaah benar-benar belajar:
+ * membuka materi, mengikuti kelas, menyimak rekaman. Portal pendaftaran dan
+ * situs informasi TIDAK termasuk meski dimiliki unit pendidikan — di sana orang
+ * mendaftar dan membaca, bukan belajar.
+ */
+export const LEARNING_CATEGORY = 'pembelajaran';
+
 export interface OfficialUnit {
   code: string;
   slug: string;
@@ -296,8 +311,10 @@ export const officialApplications = [
     sortOrder: 8,
     name: 'Portal Belajar Islam Dasar',
     title: 'Portal Pembelajaran Belajar Islam Dasar TSL',
-    summary: 'Sistem pembelajaran peserta program Belajar Islam Dasar (BID) TSL.',
+    summary:
+      'Ruang belajar peserta program Belajar Islam Dasar (BID) TSL: mengikuti kelas, membuka materi, dan melanjutkan progres belajar.',
     kind: 'portal' as const,
+    category: LEARNING_CATEGORY,
     ownerUnitSlug: 'tsl-learning',
     url: 'https://my.tarbiyahsunnahlearning.or.id/',
     ctaLabel: 'Masuk portal',
@@ -309,8 +326,9 @@ export const officialApplications = [
     name: 'Sistem Pembelajaran Abu Haidar As Sundawy',
     title: 'Sistem Pembelajaran Kajian Abu Haidar As Sundawy',
     summary:
-      'Sistem pembelajaran bagi jamaah kajian untuk mengulang materi, serta menyimak kajian yang terlewat.',
+      'Ruang belajar jamaah kajian Ustadz Abu Haidar As Sundawy: mengulang materi, serta menyimak dan menonton kajian tatap muka yang terlewat.',
     kind: 'aplikasi' as const,
+    category: LEARNING_CATEGORY,
     ownerUnitSlug: 'kajian-sunnah',
     // Disebutkan sebagai http://; alamat itu mengalihkan ke https:// dan versi
     // aman itulah yang disimpan.

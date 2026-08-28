@@ -477,6 +477,17 @@ export const applications = pgTable(
       .references(() => units.id, { onDelete: 'restrict' }),
     name: text('name').notNull(),
     kind: applicationKind('kind').notNull(),
+    /**
+     * Pengelompokan tematik, terpisah dari `kind`.
+     *
+     * `kind` menjawab "ini aplikasi, situs, atau portal" — bentuk sistemnya.
+     * `category` menjawab "untuk keperluan apa" — dan itu pertanyaan yang
+     * berbeda. Sistem pembelajaran YTS terdiri dari satu `aplikasi` dan satu
+     * `portal`, jadi mengelompokkannya lewat `kind` tidak mungkin.
+     *
+     * Null berarti belum dikelompokkan; sistem tetap tampil di registry.
+     */
+    category: text('category'),
     url: text('url'),
     ctaLabel: text('cta_label').notNull().default('Buka'),
     technicalOwner: text('technical_owner'),
@@ -501,6 +512,7 @@ export const applications = pgTable(
     uniqueIndex('applications_code_key').on(table.code),
     index('applications_owner_idx').on(table.ownerUnitId),
     index('applications_status_idx').on(table.status, table.visibility),
+    index('applications_category_idx').on(table.category, table.status),
     index('applications_search_idx').using('gin', table.searchVector),
   ],
 );

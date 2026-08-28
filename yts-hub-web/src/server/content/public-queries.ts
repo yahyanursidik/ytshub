@@ -17,6 +17,7 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
 import { getDb } from '@/server/db/client';
 import { applications, faqs, programs, services, units } from '@/server/db/schema';
+import { LEARNING_CATEGORY } from '@/server/db/official-data';
 
 /**
  * Gate publik yang dipakai SETIAP query di file ini.
@@ -180,6 +181,45 @@ export async function getPublicApplications(limit = 3) {
 }
 
 export type PublicApplication = Awaited<ReturnType<typeof getPublicApplications>>[number];
+
+/**
+ * Sistem tempat jamaah benar-benar belajar — "ekosistem pembelajaran online".
+ *
+ * Dipilih lewat `category`, bukan lewat `kind` maupun unit pemiliknya. `kind`
+ * tidak bisa dipakai karena kedua sistem ini berbeda bentuk (satu aplikasi,
+ * satu portal); unit pemilik juga tidak, karena unit yang sama memiliki situs
+ * informasi dan portal pendaftaran yang bukan tempat belajar.
+ *
+ * Kategorinya diisi lewat admin, jadi menambah sistem pembelajaran baru ke
+ * halaman /belajar tidak menuntut perubahan kode.
+ */
+export async function getLearningSystems() {
+  return getDb()
+    .select({
+      id: applications.id,
+      slug: applications.slug,
+      name: applications.name,
+      summary: applications.summary,
+      description: applications.description,
+      kind: applications.kind,
+      url: applications.url,
+      ctaLabel: applications.ctaLabel,
+      unitSlug: units.slug,
+      unitName: units.shortName,
+    })
+    .from(applications)
+    .innerJoin(units, eq(applications.ownerUnitId, units.id))
+    .where(
+      and(
+        publicOnly(applications),
+        publicOnly(units),
+        eq(applications.category, LEARNING_CATEGORY),
+      ),
+    )
+    .orderBy(asc(applications.sortOrder), asc(applications.name));
+}
+
+export type LearningSystem = Awaited<ReturnType<typeof getLearningSystems>>[number];
 
 export async function getUnitSlugs() {
   return getDb()

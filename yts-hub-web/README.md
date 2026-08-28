@@ -176,6 +176,30 @@ scripts/backup.ts       # CLI cadangan konten & verifikasinya
 tools/                  # screenshot, audit a11y, budget performa
 ```
 
+## Ekosistem pembelajaran
+
+Dua sistem — LMS kajian Abu Haidar As Sundawy dan portal Belajar Islam Dasar TSL —
+disajikan bersama di `/belajar` sebagai satu tawaran, bukan dua baris di registry.
+
+**Dipilih lewat `applications.category`, bukan `kind` maupun unit pemiliknya.** `kind`
+tidak bisa dipakai karena keduanya berbeda bentuk (satu `aplikasi`, satu `portal`); unit
+pemilik juga tidak, karena unit yang sama memiliki situs informasi dan portal pendaftaran
+yang bukan tempat belajar. Kategorinya diisi lewat admin, jadi menambah sistem
+pembelajaran baru tidak menuntut perubahan kode.
+
+Yang masuk kategori ini hanya tempat orang **benar-benar belajar** — membuka materi,
+mengikuti kelas, menyimak rekaman. Portal pendaftaran dan situs informasi tidak termasuk
+meski dimiliki unit pendidikan: di sana orang mendaftar dan membaca, bukan belajar.
+
+Halaman `/belajar` menjawab pertanyaan yang sebenarnya membuat orang tersesat — bukan
+"sistem apa saja yang ada", melainkan "saya harus masuk yang mana". Karena itu tiap
+sistem disertai keterangan untuk siapa ia dibuat, dan program yang berjalan ikut
+ditampilkan untuk pengunjung yang belum menjadi peserta apa pun.
+
+Pintasan "Belajar Islam" di beranda diarahkan ke sini, bukan ke filter program: pintasan
+itu dibaca sebagai "saya mau belajar", dan tujuan itu mencakup sistemnya — bukan hanya
+daftar program yang bisa diikuti.
+
 ## Pengumuman berbatas waktu
 
 **Pengumuman seperti "SPMB sedang dibuka" adalah entity, bukan banner di kode.**
